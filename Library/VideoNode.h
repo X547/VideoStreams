@@ -16,6 +16,8 @@ enum {
 	videoNodePresentMsg          = 4,
 	videoNodePresentedMsg        = 5,
 
+	videoNodeInternalLastMsg     = 31,
+
 	videoNodeLastMsg             = 1023,
 };
 
@@ -32,7 +34,7 @@ private:
 public:
 	VideoNode(const char* name = NULL);
 	virtual ~VideoNode();
-	
+
 	bool IsConnected() const {return fIsConnected;}
 	const BMessenger& Link() const {return fLink;}
 	status_t ConnectTo(const BMessenger& link);
@@ -46,18 +48,11 @@ public:
 	virtual status_t SwapChainRequested(const SwapChainSpec& spec);
 	virtual void SwapChainChanged(bool isValid);
 
-	virtual void MessageReceived(BMessage* msg);
+	void MessageReceived(BMessage* msg) override;
 };
 
 
-static void WriteMessenger(const BMessenger& obj)
-{
-	printf("(team: %" B_PRId32 ", port: %" B_PRId32 ", token: %" B_PRId32 ")",
-		BMessenger::Private((BMessenger*)&obj).Team(),
-		BMessenger::Private((BMessenger*)&obj).Port(),
-		BMessenger::Private((BMessenger*)&obj).Token()
-	);
-}
+void WriteMessenger(const BMessenger& obj);
 
 
 #endif	// _VIDEONODE_H_

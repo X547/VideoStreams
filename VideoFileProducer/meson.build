@@ -1,11 +1,10 @@
 sources = [
 	'ProducerApp.cpp',
-	'TestProducer.cpp',
-	'AnimProducer.cpp',
+	'VideoFileProducer.cpp',
 ]
 
-TestProducer = executable(
-	'TestProducer',
+VideoFileProducer = executable(
+	'VideoFileProducer',
 	sources,
 	include_directories: [
 		'../Library',
@@ -14,7 +13,7 @@ TestProducer = executable(
 	],
 	dependencies: [
 		compiler.find_library('be'),
-		compiler.find_library('translation'),
+		compiler.find_library('media'),
 	],
 	link_with: [
 		libvideostreams

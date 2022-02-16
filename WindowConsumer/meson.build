@@ -1,9 +1,10 @@
 sources = [
 	'ConsumerApp.cpp',
+	'ConsumerView.cpp'
 ]
 
-TestConsumer = executable(
-	'TestConsumer',
+WindowConsumer = executable(
+	'WindowConsumer',
 	sources,
 	include_directories: [
 		'../Library',

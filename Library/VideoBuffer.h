@@ -12,16 +12,36 @@ enum PresentEffect {
 	presentEffectCopy,
 };
 
+enum BufferRefKind {
+	bufferRefArea,
+	bufferRefGpu,
+};
+
+struct BufferRef {
+	uint64 offset, size;
+	BufferRefKind kind;
+	union {
+		struct {
+			area_id id;
+		} area;
+		struct {
+			int32 id;
+			team_id team;
+		} gpu;
+	};
+};
+
+struct BufferFormat {
+	int32 bytesPerRow;
+	int32 width, height;
+	color_space colorSpace;
+};
 
 struct VideoBuffer
 {
 	int32 id; // index in SwapChain.buffers
-	area_id area;
-	size_t offset;
-	int32 length;
-	int32 bytesPerRow;
-	int32 width, height;
-	color_space colorSpace;
+	BufferRef ref;
+	BufferFormat format;
 };
 
 
@@ -40,6 +60,7 @@ struct SwapChainSpec {
 
 struct SwapChain {
 	size_t size;
+	PresentEffect presentEffect;
 	uint32 bufferCnt;
 	VideoBuffer* buffers;
 };

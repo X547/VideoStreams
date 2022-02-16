@@ -8,6 +8,24 @@ inline int32 ReplaceError(int32 err, int32 replaceWith) {return err < B_OK ? rep
 #define CheckReply(msg, err) {status_t _err = (err); if (_err < B_OK) {BMessage reply(B_REPLY); reply.AddInt32("error", _err); msg->SendReply(&reply); return;}}
 
 
+static status_t SendMessageSync(
+	BHandler* src, const BMessenger &dst, BMessage* message, BMessage* reply,
+	bigtime_t deliveryTimeout = B_INFINITE_TIMEOUT, bigtime_t replyTimeout = B_INFINITE_TIMEOUT
+)
+{
+	if (dst.IsTargetLocal()) {
+		BLooper* dstLooper;
+		BHandler* dstHandler = dst.Target(&dstLooper);
+		if (src->Looper() == dstLooper) {
+			// !!! can't get reply
+			dstHandler->MessageReceived(message);
+			return B_OK;
+		}
+	}
+	return dst.SendMessage(message, reply, deliveryTimeout, replyTimeout);
+}
+
+
 VideoNode::VideoNode(const char* name):
 	BHandler(name),
 	fIsConnected(false),
@@ -34,21 +52,40 @@ status_t VideoNode::ConnectTo(const BMessenger& link)
 		BMessage reply;
 		BMessage msg(videoNodeConnectMsg);
 		msg.AddBool("doConnect", false);
-		CheckRet(Link().SendMessage(&msg, &reply));
+		CheckRet(SendMessageSync(this, Link(), &msg, &reply));
 		fLink = BMessenger();
 		fIsConnected = false;
+		Connected(false);
 	}
 	if (link.IsValid()) {
+/*
+		struct LinkReleaser {
+			VideoNode& base;
+			bool doRelease;
+			LinkReleaser(VideoNode& base): base(base), doRelease(true) {}
+			void Detach() {doRelease = false;}
+			~LinkReleaser()
+			{
+				if (doRelease) {
+					base.fLink = BMessenger();
+					base.fIsConnected = false;
+				}
+			}
+		} linkReleaser(*this);
+*/
 		BMessage reply;
 		BMessage msg(videoNodeConnectMsg);
 		msg.AddBool("doConnect", true);
 		msg.AddMessenger("link", BMessenger(this));
-		CheckRet(link.SendMessage(&msg, &reply));
+		CheckRet(SendMessageSync(this, link, &msg, &reply));
 		int32 error;
 		if (reply.FindInt32("error", &error) >= B_OK)
 			CheckRet(error);
+
+//		linkReleaser.Detach();
 		fLink = link;
 		fIsConnected = true;
+		Connected(true);
 	}
 	return B_OK;
 }
@@ -74,7 +111,8 @@ status_t VideoNode::SetSwapChain(const SwapChain* swapChain)
 		if (IsConnected()) {
 			BMessage msg(videoNodeSwapChainChangedMsg);
 			msg.AddBool("isValid", false);
-			Link().SendMessage(&msg);
+			BMessage reply;
+			CheckRet(SendMessageSync(this, Link(), &msg, &reply));
 		}
 
 		SwapChainChanged(false);
@@ -101,7 +139,8 @@ status_t VideoNode::SetSwapChain(const SwapChain* swapChain)
 		msg.AddBool("isValid", true);
 		msg.AddData("swapChain", B_RAW_TYPE, &fSwapChain, sizeof(VideoBuffer) - sizeof(void*));
 		msg.AddData("buffers", B_RAW_TYPE, swapChain->buffers, fSwapChain.bufferCnt*sizeof(VideoBuffer));
-		Link().SendMessage(&msg);
+		BMessage reply;
+		CheckRet(SendMessageSync(this, Link(), &msg, &reply));
 	}
 
 	SwapChainChanged(true);
@@ -219,4 +258,14 @@ void VideoNode::MessageReceived(BMessage* msg)
 	}
 	}
 	BHandler::MessageReceived(msg);
+}
+
+
+void _EXPORT WriteMessenger(const BMessenger& obj)
+{
+	printf("(team: %" B_PRId32 ", port: %" B_PRId32 ", token: %" B_PRId32 ")",
+		BMessenger::Private((BMessenger*)&obj).Team(),
+		BMessenger::Private((BMessenger*)&obj).Port(),
+		BMessenger::Private((BMessenger*)&obj).Token()
+	);
 }

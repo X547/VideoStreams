@@ -1,11 +1,9 @@
 sources = [
-	'ProducerApp.cpp',
-	'TestProducer.cpp',
-	'AnimProducer.cpp',
+	'CompositeApp.cpp',
 ]
 
-TestProducer = executable(
-	'TestProducer',
+Compositor = executable(
+	'Compositor',
 	sources,
 	include_directories: [
 		'../Library',
@@ -14,7 +12,6 @@ TestProducer = executable(
 	],
 	dependencies: [
 		compiler.find_library('be'),
-		compiler.find_library('translation'),
 	],
 	link_with: [
 		libvideostreams

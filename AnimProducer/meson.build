@@ -1,11 +1,10 @@
 sources = [
 	'ProducerApp.cpp',
-	'TestProducer.cpp',
 	'AnimProducer.cpp',
 ]
 
-TestProducer = executable(
-	'TestProducer',
+AnimProducer = executable(
+	'AnimProducer',
 	sources,
 	include_directories: [
 		'../Library',
