@@ -1,22 +1,19 @@
 sources = [
 	'ProducerApp.cpp',
-	'AnimProducer.cpp',
+	'VideoFileProducer.cpp',
 ]
 
-AnimProducer = executable(
-	'AnimProducer',
+VideoFileProducer = executable(
+	'VideoFileProducer',
 	sources,
 	include_directories: [
-		'../Library',
 		'/boot/system/develop/headers/private/app',
 		'/boot/system/develop/headers/private/shared'
 	],
 	dependencies: [
+		VideoStreams,
 		compiler.find_library('be'),
-		compiler.find_library('translation'),
-	],
-	link_with: [
-		libvideostreams
+		compiler.find_library('media'),
 	],
 	gnu_symbol_visibility: 'hidden',
 	install: true,

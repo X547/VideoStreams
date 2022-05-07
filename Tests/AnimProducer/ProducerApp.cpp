@@ -69,18 +69,22 @@ public:
 		for (int i = 0; i < fCount; i++) {
 			fProducers[i] = new AnimProducer("testProducer2");
 			AddHandler(fProducers[i]);
-/*
-			BRegion clipping;
-			clipping.Include(fProducers[i]->Bounds());
-			clipping.Exclude(BRect(128, 128, 192, 192));
-			clipping.Exclude(BRect(128, 128, 192, 192).OffsetByCopy(-32, 32));
-*/
+
 			SurfaceUpdate update = {
-				.valid = (1 << surfaceFrame) /*| (1 << surfaceClipping)*/ | (1 << surfaceDrawMode),
+				.valid = (1 << surfaceFrame) | (1 << surfaceDrawMode),
 				.frame = fProducers[i]->Bounds().OffsetByCopy(32 + 64*i, 32 + 48*i),
-				/*.clipping = &clipping,*/
-				.drawMode = B_OP_COPY
+				.drawMode = B_OP_ALPHA
 			};
+
+			if (false) {
+				BRegion clipping;
+				clipping.Include(fProducers[i]->Bounds());
+				clipping.Exclude(BRect(128, 128, 192, 192));
+				clipping.Exclude(BRect(128, 128, 192, 192).OffsetByCopy(-32, 32));
+				update.valid |= (1 << surfaceClipping);
+				update.clipping = &clipping;
+			}
+
 			Check(fCompositor->NewSurface(fCompositeConsumers[i], "surface", update));
 			fProducers[i]->SetSurface(compositeProducer, fCompositeConsumers[i]);
 			Check(fProducers[i]->ConnectTo(fCompositeConsumers[i]));

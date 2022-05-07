@@ -129,37 +129,38 @@ void CompositeProducer::SwapChainChanged(bool isValid)
 
 	fMappedBuffers.Unset();
 
-	if (isValid) {
-		printf("  swapChain: \n");
-		printf("    size: %" B_PRIuSIZE "\n", GetSwapChain().size);
-		printf("    bufferCnt: %" B_PRIu32 "\n", GetSwapChain().bufferCnt);
-		printf("    buffers:\n");
-		for (uint32 i = 0; i < GetSwapChain().bufferCnt; i++) {
-			printf("      %" B_PRIu32 "\n", i);
-			printf("        area: %" B_PRId32 "\n", GetSwapChain().buffers[i].ref.area.id);
-			printf("        offset: %" B_PRIuSIZE "\n", GetSwapChain().buffers[i].ref.offset);
-			printf("        length: %" B_PRIu64 "\n", GetSwapChain().buffers[i].ref.size);
-			printf("        bytesPerRow: %" B_PRIu32 "\n", GetSwapChain().buffers[i].format.bytesPerRow);
-			printf("        width: %" B_PRIu32 "\n", GetSwapChain().buffers[i].format.width);
-			printf("        height: %" B_PRIu32 "\n", GetSwapChain().buffers[i].format.height);
-			printf("        colorSpace: %d\n", GetSwapChain().buffers[i].format.colorSpace);
-		}
-
-		fMappedBuffers.SetTo(new MappedBuffer[GetSwapChain().bufferCnt]);
-		for (uint32 i = 0; i < GetSwapChain().bufferCnt; i++) {
-			auto &mappedBuffer = fMappedBuffers[i];
-			mappedBuffer.area = AreaCloner::Map(GetSwapChain().buffers[i].ref.area.id);
-			if (mappedBuffer.area->GetAddress() == NULL) {
-				printf("[!] mappedArea.adr == NULL\n");
-				return;
-			}
-			mappedBuffer.bits = mappedBuffer.area->GetAddress() + GetSwapChain().buffers[i].ref.offset;
-		}
-
-		fValidPrevBufCnt = 0;
-		
-		Produce();
+	if (!isValid) {
+		return;
 	}
+	printf("  swapChain: \n");
+	printf("    size: %" B_PRIuSIZE "\n", GetSwapChain().size);
+	printf("    bufferCnt: %" B_PRIu32 "\n", GetSwapChain().bufferCnt);
+	printf("    buffers:\n");
+	for (uint32 i = 0; i < GetSwapChain().bufferCnt; i++) {
+		printf("      %" B_PRIu32 "\n", i);
+		printf("        area: %" B_PRId32 "\n", GetSwapChain().buffers[i].ref.area.id);
+		printf("        offset: %" B_PRIuSIZE "\n", GetSwapChain().buffers[i].ref.offset);
+		printf("        length: %" B_PRIu64 "\n", GetSwapChain().buffers[i].ref.size);
+		printf("        bytesPerRow: %" B_PRIu32 "\n", GetSwapChain().buffers[i].format.bytesPerRow);
+		printf("        width: %" B_PRIu32 "\n", GetSwapChain().buffers[i].format.width);
+		printf("        height: %" B_PRIu32 "\n", GetSwapChain().buffers[i].format.height);
+		printf("        colorSpace: %d\n", GetSwapChain().buffers[i].format.colorSpace);
+	}
+
+	fMappedBuffers.SetTo(new MappedBuffer[GetSwapChain().bufferCnt]);
+	for (uint32 i = 0; i < GetSwapChain().bufferCnt; i++) {
+		auto &mappedBuffer = fMappedBuffers[i];
+		mappedBuffer.area = AreaCloner::Map(GetSwapChain().buffers[i].ref.area.id);
+		if (mappedBuffer.area->GetAddress() == NULL) {
+			printf("[!] mappedArea.adr == NULL\n");
+			return;
+		}
+		mappedBuffer.bits = mappedBuffer.area->GetAddress() + GetSwapChain().buffers[i].ref.offset;
+	}
+
+	fValidPrevBufCnt = 0;
+	
+	Produce();
 }
 
 void CompositeProducer::Presented()

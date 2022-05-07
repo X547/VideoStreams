@@ -1,21 +1,17 @@
 sources = [
 	'ConsumerApp.cpp',
-	'AccelerantConsumer.cpp',
+	'ConsumerView.cpp'
 ]
 
-AccelerantConsumer = executable(
-	'AccelerantConsumer',
+WindowConsumer = executable(
+	'WindowConsumer',
 	sources,
 	include_directories: [
-		'../Library',
 		'/boot/system/develop/headers/private/app'
 	],
 	dependencies: [
-		compiler.find_library('be'),
-		compiler.find_library('game')
-	],
-	link_with: [
-		libvideostreams
+		VideoStreams,
+		compiler.find_library('be')
 	],
 	gnu_symbol_visibility: 'hidden',
 	install: true,

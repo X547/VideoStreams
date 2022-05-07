@@ -1,20 +1,19 @@
 sources = [
-	'CompositeApp.cpp',
+	'ProducerApp.cpp',
+	'AnimProducer.cpp',
 ]
 
-Compositor = executable(
-	'Compositor',
+AnimProducer = executable(
+	'AnimProducer',
 	sources,
 	include_directories: [
-		'../Library',
 		'/boot/system/develop/headers/private/app',
 		'/boot/system/develop/headers/private/shared'
 	],
 	dependencies: [
+		VideoStreams,
 		compiler.find_library('be'),
-	],
-	link_with: [
-		libvideostreams
+		compiler.find_library('translation'),
 	],
 	gnu_symbol_visibility: 'hidden',
 	install: true,
