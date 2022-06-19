@@ -13,6 +13,7 @@
 #include <private/shared/AutoDeleter.h>
 
 #include <VideoConsumer.h>
+#include <VideoBuffer.h>
 
 
 #define CheckRet(err) {status_t _err = (err); if (_err < B_OK) return _err;}
@@ -83,7 +84,8 @@ public:
 	{
 		int32 height = Wnd()->FrameBufferInfo()->height/2;
 		Wnd()->MoveDisplayArea(0, height*DisplayBufferId());
-		Presented();
+		PresentedInfo presentedInfo {};
+		Presented(presentedInfo);
 	}
 	
 };

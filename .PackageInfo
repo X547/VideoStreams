@@ -1,0 +1,21 @@
+name			videostreams
+version			0.1-1
+architecture		x86_64
+summary			"videostreams"
+description		"videostreams"
+packager		"X512 <danger_mail@list.ru>"
+vendor			"Unknown"
+licenses {
+	"MIT"
+}
+copyrights {
+	"Unknown"
+}
+provides {
+	videostreams = 0.1
+	devel:videostreams = 0.1
+}
+requires {
+}
+urls {
+}

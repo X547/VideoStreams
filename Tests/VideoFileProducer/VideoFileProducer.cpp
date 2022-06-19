@@ -93,11 +93,11 @@ void VideoFileProducer::SwapChainChanged(bool isValid)
 	TestProducerBase::SwapChainChanged(isValid);
 }
 
-void VideoFileProducer::Presented()
+void VideoFileProducer::Presented(const PresentedInfo &presentedInfo)
 {
 	// printf("VideoFileProducer::Presented()\n");
 	//fMessageRunner.SetTo(new BMessageRunner(BMessenger(this), BMessage(stepMsg), 1000000/60, 1));
-	TestProducerBase::Presented();
+	TestProducerBase::Presented(presentedInfo);
 	Produce();
 }
 

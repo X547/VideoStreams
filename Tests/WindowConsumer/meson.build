@@ -1,6 +1,5 @@
 sources = [
 	'ConsumerApp.cpp',
-	'ConsumerView.cpp'
 ]
 
 WindowConsumer = executable(

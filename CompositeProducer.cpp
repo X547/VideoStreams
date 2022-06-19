@@ -5,6 +5,8 @@
 #include <Looper.h>
 #include <Application.h>
 
+#include <stdio.h>
+
 
 inline int32 ReplaceError(int32 err, int32 replaceWith) {return err < B_OK ? replaceWith : err;}
 #define CheckRet(err) {status_t _err = (err); if (_err < B_OK) return _err;}
@@ -104,14 +106,11 @@ void CompositeProducer::Connected(bool isActive)
 		printf("\n");
 
 		SwapChainSpec spec;
-		BufferSpec buffers[2];
 		spec.size = sizeof(SwapChainSpec);
 		spec.presentEffect = presentEffectSwap;
 		spec.bufferCnt = 2;
-		spec.bufferSpecs = buffers;
-		for (uint32 i = 0; i < spec.bufferCnt; i++) {
-			buffers[i].colorSpace = B_RGBA32;
-		}
+		spec.kind = bufferRefArea;
+		spec.colorSpace = B_RGBA32;
 		if (RequestSwapChain(spec) < B_OK) {
 			printf("[!] can't request swap chain\n");
 			exit(1);
@@ -127,43 +126,21 @@ void CompositeProducer::SwapChainChanged(bool isValid)
 	VideoProducer::SwapChainChanged(isValid);
 	printf("TestProducer::SwapChainChanged(%d)\n", isValid);
 
-	fMappedBuffers.Unset();
+	fSwapChainBind.Unset();
 
 	if (!isValid) {
 		return;
 	}
-	printf("  swapChain: \n");
-	printf("    size: %" B_PRIuSIZE "\n", GetSwapChain().size);
-	printf("    bufferCnt: %" B_PRIu32 "\n", GetSwapChain().bufferCnt);
-	printf("    buffers:\n");
-	for (uint32 i = 0; i < GetSwapChain().bufferCnt; i++) {
-		printf("      %" B_PRIu32 "\n", i);
-		printf("        area: %" B_PRId32 "\n", GetSwapChain().buffers[i].ref.area.id);
-		printf("        offset: %" B_PRIuSIZE "\n", GetSwapChain().buffers[i].ref.offset);
-		printf("        length: %" B_PRIu64 "\n", GetSwapChain().buffers[i].ref.size);
-		printf("        bytesPerRow: %" B_PRIu32 "\n", GetSwapChain().buffers[i].format.bytesPerRow);
-		printf("        width: %" B_PRIu32 "\n", GetSwapChain().buffers[i].format.width);
-		printf("        height: %" B_PRIu32 "\n", GetSwapChain().buffers[i].format.height);
-		printf("        colorSpace: %d\n", GetSwapChain().buffers[i].format.colorSpace);
-	}
+	DumpSwapChain(GetSwapChain());
 
-	fMappedBuffers.SetTo(new MappedBuffer[GetSwapChain().bufferCnt]);
-	for (uint32 i = 0; i < GetSwapChain().bufferCnt; i++) {
-		auto &mappedBuffer = fMappedBuffers[i];
-		mappedBuffer.area = AreaCloner::Map(GetSwapChain().buffers[i].ref.area.id);
-		if (mappedBuffer.area->GetAddress() == NULL) {
-			printf("[!] mappedArea.adr == NULL\n");
-			return;
-		}
-		mappedBuffer.bits = mappedBuffer.area->GetAddress() + GetSwapChain().buffers[i].ref.offset;
-	}
+	fSwapChainBind.ConnectTo(GetSwapChain());
 
 	fValidPrevBufCnt = 0;
 	
 	Produce();
 }
 
-void CompositeProducer::Presented()
+void CompositeProducer::Presented(const PresentedInfo &presentedInfo)
 {
 	// printf("CompositeProducer::Presented()\n");
 	if (!fUpdateRequested && fDirty.CountRects() > 0) {
@@ -171,7 +148,7 @@ void CompositeProducer::Presented()
 		BMessage msg(stepMsg);
 		BMessenger(this).SendMessage(&msg);
 	}
-	VideoProducer::Presented();
+	VideoProducer::Presented(presentedInfo);
 }
 
 void CompositeProducer::MessageReceived(BMessage* msg)

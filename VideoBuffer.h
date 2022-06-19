@@ -45,16 +45,13 @@ struct VideoBuffer
 };
 
 
-struct BufferSpec {
-	color_space colorSpace;
-};
-
-
 struct SwapChainSpec {
 	size_t size;
 	PresentEffect presentEffect;
 	size_t bufferCnt;
-	BufferSpec* bufferSpecs;
+	BufferRefKind kind;
+	int32 width, height;
+	color_space colorSpace;
 };
 
 

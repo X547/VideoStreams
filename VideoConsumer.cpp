@@ -1,4 +1,5 @@
 #include "VideoConsumer.h"
+#include "VideoBuffer.h"
 
 #include <Region.h>
 #include <stdio.h>
@@ -49,7 +50,7 @@ VideoBuffer* VideoConsumer::DisplayBuffer()
 
 void VideoConsumer::PresentInt(int32 bufferId, uint32 producerEra)
 {
-	printf("VideoConsumer::PresentInt(%" B_PRId32 ", %" B_PRIu32 ")\n", bufferId, producerEra);
+	//printf("VideoConsumer::PresentInt(%" B_PRId32 ", %" B_PRIu32 ")\n", bufferId, producerEra);
 	fDisplayQueue.Add(bufferId);
 	if (fDisplayQueue.Length() == 1) {
 		BRegion& dirty = fDirtyRegions[bufferId];
@@ -57,19 +58,19 @@ void VideoConsumer::PresentInt(int32 bufferId, uint32 producerEra)
 	}
 }
 
-status_t VideoConsumer::Presented()
+status_t VideoConsumer::Presented(const PresentedInfo &presentedInfo)
 {
 	if (!IsConnected() || !SwapChainValid())
 		return B_NOT_ALLOWED;
 
 	switch (GetSwapChain().presentEffect) {
 		case presentEffectSwap: {
-			PresentedInt(fDisplayBufferId);
+			PresentedInt(fDisplayBufferId, presentedInfo);
 			fDisplayBufferId = fDisplayQueue.Remove();
 			break;
 		}
 		case presentEffectCopy: {
-			PresentedInt(fDisplayQueue.Remove());
+			PresentedInt(fDisplayQueue.Remove(), presentedInfo);
 			break;
 		}
 		default:
@@ -86,12 +87,17 @@ status_t VideoConsumer::Presented()
 
 // #pragma mark -
 
-status_t VideoConsumer::PresentedInt(int32 bufferId)
+status_t VideoConsumer::PresentedInt(int32 bufferId, const PresentedInfo &presentedInfo)
 {
-	printf("VideoConsumer::PresentedInt(%" B_PRId32 ", %" B_PRIu32 ")\n", bufferId, fEra);
+	//printf("VideoConsumer::PresentedInt(%" B_PRId32 ", %" B_PRIu32 ")\n", bufferId, fEra);
 	BMessage msg(videoNodePresentedMsg);
 	if (bufferId >= 0) msg.AddInt32("recycleId", bufferId);
 	msg.AddUInt32("era", fEra);
+	if (presentedInfo.suboptimal) {
+		msg.AddBool("suboptimal", presentedInfo.suboptimal);
+		msg.AddInt32("width", presentedInfo.width);
+		msg.AddInt32("height", presentedInfo.height);
+	}
 	CheckRet(Link().SendMessage(&msg));
 	return B_OK;
 }

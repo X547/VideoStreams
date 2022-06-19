@@ -4,6 +4,7 @@
 #include <VideoNode.h>
 #include "BufferQueue.h"
 
+class VideoBuffer;
 class BRegion;
 
 
@@ -13,13 +14,13 @@ private:
 	BufferQueue fBufferPool;
 	uint32 fEra;
 
-	status_t PresentedInt(int32 recycleId);
+	status_t PresentedInt(int32 recycleId, const PresentedInfo &presentedInfo);
 
 public:
 	VideoProducer(const char* name = NULL);
 	virtual ~VideoProducer();
 
-	virtual void SwapChainChanged(bool isValid);
+	void SwapChainChanged(bool isValid) override;
 
 	uint32 Era() {return fEra;}
 	int32 RenderBufferId();
@@ -28,7 +29,8 @@ public:
 	VideoBuffer* RenderBuffer();
 	status_t Present(int32 bufferId, const BRegion* dirty = NULL);
 	status_t Present(const BRegion* dirty = NULL);
-	virtual void Presented();
+	virtual void Presented(const PresentedInfo &presentedInfo);
+	status_t GetConsumerInfo(ConsumerInfo &info);
 
 	void MessageReceived(BMessage* msg) override;
 };

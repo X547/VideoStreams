@@ -1,12 +1,15 @@
 #include "AccelerantConsumer.h"
+#include "VideoBuffer.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include <dirent.h>
 #include <FindDirectory.h>
 #include <graphic_driver.h>
 #include <Screen.h>
 #include <Looper.h>
+#include <String.h>
 
 #include <AppServerLink.h>
 #include <ServerProtocol.h>
@@ -336,7 +339,8 @@ status_t AccelerantConsumer::ConsumerThread()
 			// printf("ConsumerThread: present %d\n", c.DisplayBufferId());
 			fQueueLen--;
 			fHooks.move_display_area_hook(0, fDm.timing.v_display*DisplayBufferId());
-			Presented();
+			PresentedInfo presentedInfo {};
+			Presented(presentedInfo);
 		}
 	}
 	return B_OK;

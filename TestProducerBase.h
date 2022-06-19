@@ -4,7 +4,7 @@
 #include <VideoProducer.h>
 
 #include "RasBuf.h"
-#include "AreaCloner.h"
+#include "VideoBufferBindSW.h"
 
 #include <Region.h>
 #include <private/shared/AutoDeleter.h>
@@ -13,17 +13,11 @@
 #include <stdio.h>
 #include <map>
 
-struct MappedBuffer
-{
-	BReference<MappedArea> area;
-	uint8* bits;
-};
-
 
 class _EXPORT TestProducerBase: public VideoProducer
 {
 private:
-	ArrayDeleter<MappedBuffer> fMappedBuffers;
+	SwapChainBindSW fSwapChainBind;
 	uint32 fValidPrevBufCnt;
 
 	BRegion fPrevDirty;
@@ -51,7 +45,7 @@ RasBuf32 TestProducerBase::RenderBufferRasBuf()
 {
 	const VideoBuffer& buf = *RenderBuffer();
 	RasBuf32 rb = {
-		.colors = (uint32*)fMappedBuffers[RenderBufferId()].bits,
+		.colors = (uint32*)fSwapChainBind.Buffers()[RenderBufferId()].bits,
 		.stride = buf.format.bytesPerRow / 4,
 		.width = buf.format.width,
 		.height = buf.format.height,		

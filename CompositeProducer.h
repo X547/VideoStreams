@@ -1,8 +1,10 @@
 #ifndef _COMPOSITEPRODUCER_H_
 #define _COMPOSITEPRODUCER_H_
 
-#include "TestProducerBase.h"
+#include "VideoProducer.h"
+#include "VideoBufferBindSW.h"
 #include "RasBuf.h"
+#include <Region.h>
 #include <MessageRunner.h>
 
 #include <private/kernel/util/DoublyLinkedList.h>
@@ -54,7 +56,7 @@ private:
 	};
 
 	DoublyLinkedList<Surface> fSurfaces;
-	ArrayDeleter<MappedBuffer> fMappedBuffers;
+	SwapChainBindSW fSwapChainBind;
 	uint32 fValidPrevBufCnt;
 	BRegion fDirty, fPrevDirty;
 	bool fUpdateRequested;
@@ -67,7 +69,7 @@ public:
 
 	void Connected(bool isActive) final;
 	void SwapChainChanged(bool isValid) final;
-	void Presented() final;
+	void Presented(const PresentedInfo &presentedInfo) final;
 	void MessageReceived(BMessage* msg) final;
 	
 	inline RasBuf32 RenderBufferRasBuf();
@@ -89,7 +91,7 @@ RasBuf32 CompositeProducer::RenderBufferRasBuf()
 {
 	const VideoBuffer& buf = *RenderBuffer();
 	RasBuf32 rb = {
-		.colors = (uint32*)fMappedBuffers[RenderBufferId()].bits,
+		.colors = (uint32*)fSwapChainBind.Buffers()[RenderBufferId()].bits,
 		.stride = buf.format.bytesPerRow / 4,
 		.width = buf.format.width,
 		.height = buf.format.height,		

@@ -1,10 +1,12 @@
 #include "VideoNode.h"
+#include "VideoBuffer.h"
+#include <private/app/MessengerPrivate.h>
 
 #include <stdio.h>
 
 
 inline int32 ReplaceError(int32 err, int32 replaceWith) {return err < B_OK ? replaceWith : err;}
-#define CheckRet(err) {status_t _err = (err); if (_err < B_OK) return _err;}
+#define CheckRet(err) {status_t _err = (err); if (_err < B_OK) {abort(); return _err;}}
 #define CheckReply(msg, err) {status_t _err = (err); if (_err < B_OK) {BMessage reply(B_REPLY); reply.AddInt32("error", _err); msg->SendReply(&reply); return;}}
 
 
@@ -25,6 +27,44 @@ static status_t SendMessageSync(
 	return dst.SendMessage(message, reply, deliveryTimeout, replyTimeout);
 }
 
+static status_t CopySwapChain(ObjectDeleter<SwapChain> &dst, const SwapChain &src)
+{
+	size_t numBytes = sizeof(SwapChain) + src.bufferCnt*sizeof(VideoBuffer);
+	dst.SetTo((SwapChain*)::operator new(numBytes));
+	if (!dst.IsSet()) return B_NO_MEMORY;
+	memcpy(dst.Get(), &src, sizeof(SwapChain));
+	dst->buffers = (VideoBuffer*)(dst.Get() + 1);
+	memcpy(dst->buffers, src.buffers, src.bufferCnt*sizeof(VideoBuffer));
+
+	return B_OK;
+}
+
+static status_t SetSwapChain(BMessage& msg, const SwapChain &swapChain)
+{
+	ObjectDeleter<SwapChain> swapChainCopy;
+	CheckRet(CopySwapChain(swapChainCopy, swapChain));
+	swapChainCopy->buffers = NULL;
+	CheckRet(msg.AddData("swapChain", B_RAW_TYPE, swapChainCopy.Get(), sizeof(SwapChain) + swapChain.bufferCnt*sizeof(VideoBuffer)));
+
+	return B_OK;
+}
+
+static status_t GetSwapChain(const BMessage& msg, ObjectDeleter<SwapChain> &swapChain)
+{
+	const void* data;
+	ssize_t numBytes;
+
+	CheckRet(msg.FindData("swapChain", B_RAW_TYPE, &data, &numBytes));
+	if (numBytes < sizeof(SwapChain)) return B_BAD_VALUE;
+	if (((SwapChain*)data)->size != sizeof(SwapChain)) return B_BAD_VALUE;
+	if (numBytes != sizeof(SwapChain) + ((SwapChain*)data)->bufferCnt * sizeof(VideoBuffer)) return B_BAD_VALUE;
+	swapChain.SetTo((SwapChain*)::operator new(numBytes));
+	memcpy(swapChain.Get(), data, numBytes);
+	swapChain->buffers = (VideoBuffer*)(swapChain.Get() + 1);
+
+	return B_OK;
+}
+
 
 VideoNode::VideoNode(const char* name):
 	BHandler(name),
@@ -32,7 +72,6 @@ VideoNode::VideoNode(const char* name):
 	fSwapChainValid(false),
 	fOwnsSwapChain(false)
 {
-	memset(&fSwapChain, 0, sizeof(SwapChain));
 }
 
 VideoNode::~VideoNode()
@@ -104,7 +143,7 @@ status_t VideoNode::SetSwapChain(const SwapChain* swapChain)
 		if (!OwnsSwapChain())
 			return B_NOT_ALLOWED;
 
-		fBuffers.Unset();
+		fSwapChain.Unset();
 		fSwapChainValid = false;
 		fOwnsSwapChain = false;
 
@@ -121,24 +160,21 @@ status_t VideoNode::SetSwapChain(const SwapChain* swapChain)
 
 	if (swapChain->size != sizeof(SwapChain))
 		return B_BAD_VALUE;
-
-	memcpy(&fSwapChain, swapChain, swapChain->size);
-	fBuffers.SetTo(new VideoBuffer[fSwapChain.bufferCnt]);
-	fSwapChain.buffers = fBuffers.Get();
-	memcpy(fSwapChain.buffers, swapChain->buffers, fSwapChain.bufferCnt*sizeof(VideoBuffer));
+	
+	CheckRet(CopySwapChain(fSwapChain, *swapChain));
 
 	fSwapChainValid = true;
 	fOwnsSwapChain = true;
 
-	printf("  swapChain: \n");
-	printf("    size: %" B_PRIuSIZE "\n", fSwapChain.size);
-	printf("    bufferCnt: %" B_PRIu32 "\n", fSwapChain.bufferCnt);
+	//printf("  swapChain: \n");
+	//printf("    size: %" B_PRIuSIZE "\n", fSwapChain.size);
+	//printf("    bufferCnt: %" B_PRIu32 "\n", fSwapChain.bufferCnt);
 
 	if (IsConnected()) {
 		BMessage msg(videoNodeSwapChainChangedMsg);
 		msg.AddBool("isValid", true);
-		msg.AddData("swapChain", B_RAW_TYPE, &fSwapChain, sizeof(VideoBuffer) - sizeof(void*));
-		msg.AddData("buffers", B_RAW_TYPE, swapChain->buffers, fSwapChain.bufferCnt*sizeof(VideoBuffer));
+		CheckRet(::SetSwapChain(msg, *fSwapChain.Get()));
+
 		BMessage reply;
 		CheckRet(SendMessageSync(this, Link(), &msg, &reply));
 	}
@@ -156,8 +192,7 @@ status_t VideoNode::RequestSwapChain(const SwapChainSpec& spec)
 		return B_ERROR;
 
 	BMessage msg(videoNodeRequestSwapChainMsg);
-	msg.AddData("spec", B_RAW_TYPE, &spec, sizeof(SwapChainSpec) - sizeof(void*));
-	msg.AddData("bufferSpecs", B_RAW_TYPE, spec.bufferSpecs, spec.bufferCnt*sizeof(BufferSpec));
+	msg.AddData("spec", B_RAW_TYPE, &spec, sizeof(SwapChainSpec));
 	Link().SendMessage(&msg);
 
 	return B_OK;
@@ -195,7 +230,7 @@ void VideoNode::MessageReceived(BMessage* msg)
 		msg->SendReply(&reply);
 		fIsConnected = doConnect;
 		if (!IsConnected() && SwapChainValid() && !OwnsSwapChain()) {
-			fBuffers.Unset();
+			fSwapChain.Unset();
 			fSwapChainValid = false;
 			fOwnsSwapChain = false;
 			SwapChainChanged(false);
@@ -208,15 +243,10 @@ void VideoNode::MessageReceived(BMessage* msg)
 		const void* data;
 		ssize_t size;
 		SwapChainSpec spec;
-		BufferSpec* bufferSpecs;
 		CheckReply(msg, ReplaceError(msg->FindData("spec", B_RAW_TYPE, &data, &size), B_BAD_VALUE));
-		if ((size_t)size < sizeof(SwapChainSpec) - sizeof(void*))
+		if ((size_t)size < sizeof(SwapChainSpec))
 			CheckReply(msg, B_BAD_VALUE);
-		memcpy(&spec, data, sizeof(SwapChainSpec) - sizeof(void*));
-		CheckReply(msg, ReplaceError(msg->FindData("bufferSpecs", B_RAW_TYPE, (const void**)&bufferSpecs, &size), B_BAD_VALUE));
-		if ((size_t)size < spec.bufferCnt*sizeof(BufferSpec))
-			CheckReply(msg, B_BAD_VALUE);
-		spec.bufferSpecs = bufferSpecs;
+		memcpy(&spec, data, sizeof(SwapChainSpec));
 		CheckReply(msg, SwapChainRequested(spec));
 		BMessage reply(B_REPLY);
 		msg->SendReply(&reply);
@@ -228,27 +258,10 @@ void VideoNode::MessageReceived(BMessage* msg)
 		bool isValid;
 		CheckReply(msg, ReplaceError(msg->FindBool("isValid", &isValid), B_BAD_VALUE));
 		if (isValid) {
-			const void* data;
-			ssize_t size;
-			SwapChain swapChain;
-			VideoBuffer* buffers;
-			CheckReply(msg, ReplaceError(msg->FindData("swapChain", B_RAW_TYPE, &data, &size), B_BAD_VALUE));
-			if ((size_t)size < sizeof(SwapChain) - sizeof(void*))
-				CheckReply(msg, B_BAD_VALUE);
-			memcpy(&swapChain, data, sizeof(SwapChain) - sizeof(void*));
-			CheckReply(msg, ReplaceError(msg->FindData("buffers", B_RAW_TYPE, (const void**)&buffers, &size), B_BAD_VALUE));
-			if ((size_t)size < swapChain.bufferCnt*sizeof(VideoBuffer))
-				CheckReply(msg, B_BAD_VALUE);
-			swapChain.buffers = buffers;
-
-			memcpy(&fSwapChain, &swapChain, sizeof(SwapChain));
-			fBuffers.SetTo(new VideoBuffer[fSwapChain.bufferCnt]);
-			fSwapChain.buffers = fBuffers.Get();
-			memcpy(fSwapChain.buffers, swapChain.buffers, fSwapChain.bufferCnt*sizeof(VideoBuffer));
-
+			CheckReply(msg, ::GetSwapChain(*msg, fSwapChain));
 			fSwapChainValid = true;
 		} else {
-			fBuffers.Unset();
+			fSwapChain.Unset();
 			fSwapChainValid = false;
 		}
 
@@ -268,4 +281,37 @@ void _EXPORT WriteMessenger(const BMessenger& obj)
 		BMessenger::Private((BMessenger*)&obj).Port(),
 		BMessenger::Private((BMessenger*)&obj).Token()
 	);
+}
+
+void _EXPORT DumpSwapChain(const SwapChain &swapChain)
+{
+	printf("swapChain: \n");
+	printf("  size: %" B_PRIuSIZE "\n", swapChain.size);
+	printf("  bufferCnt: %" B_PRIu32 "\n", swapChain.bufferCnt);
+	printf("  buffers:\n");
+	for (uint32 i = 0; i < swapChain.bufferCnt; i++) {
+		const VideoBuffer &buffer = swapChain.buffers[i];
+		printf("    %" B_PRIu32 "\n", i);
+		switch (buffer.ref.kind) {
+			case bufferRefArea: {
+				printf("      ref.kind: area\n");
+				printf("      ref.area.id: %" B_PRId32 "\n", buffer.ref.area.id);
+				break;
+			}
+			case bufferRefGpu: {
+				printf("      ref.kind: gpu\n");
+				printf("      ref.area.id: %" B_PRId32 "\n",   buffer.ref.gpu.id);
+				printf("      ref.area.team: %" B_PRId32 "\n", buffer.ref.gpu.team);
+				break;
+			}
+			default:
+				printf("      ref.kind: ?(%d)\n", buffer.ref.kind);
+		}
+		printf("      ref.offset: %" B_PRIuSIZE "\n",       buffer.ref.offset);
+		printf("      ref.length: %" B_PRIu64 "\n",         buffer.ref.size);
+		printf("      format.bytesPerRow: %" B_PRIu32 "\n", buffer.format.bytesPerRow);
+		printf("      format.width: %" B_PRIu32 "\n",       buffer.format.width);
+		printf("      format.height: %" B_PRIu32 "\n",      buffer.format.height);
+		printf("      format.colorSpace: %d\n",             buffer.format.colorSpace);
+	}
 }

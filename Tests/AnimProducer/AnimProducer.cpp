@@ -5,14 +5,23 @@
 
 #include <Bitmap.h>
 #include <File.h>
+#include <Path.h>
 #include <TranslationUtils.h>
+#include <image.h>
 
 
 AnimProducer::AnimProducer(const char* name):
 	TestProducerBase(name),
 	fCurFrame(0)
 {
-	Load("/Haiku 64 (USB)/home/Tests/VideoStreams/rsrc/comipo24bit");
+	int32 cookie = 0;
+	image_info imageInfo;
+	get_next_image_info(B_CURRENT_TEAM, &cookie, &imageInfo);
+	BPath filePath(imageInfo.name);
+	filePath.GetParent(&filePath);
+	filePath.Append("rsrc/comipo24bit");
+
+	Load(filePath.Path());
 }
 
 void AnimProducer::SetSurface(BMessenger compositor, BMessenger surface)
@@ -90,11 +99,11 @@ void AnimProducer::SwapChainChanged(bool isValid)
 	TestProducerBase::SwapChainChanged(isValid);
 }
 
-void AnimProducer::Presented()
+void AnimProducer::Presented(const PresentedInfo &presentedInfo)
 {
 	// printf("AnimProducer::Presented()\n");
 	fMessageRunner.SetTo(new BMessageRunner(BMessenger(this), BMessage(stepMsg), 1000000/60, 1));
-	TestProducerBase::Presented();
+	TestProducerBase::Presented(presentedInfo);
 }
 
 void AnimProducer::MessageReceived(BMessage* msg)

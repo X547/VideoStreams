@@ -3,18 +3,20 @@
 
 #include <Handler.h>
 #include <Messenger.h>
-#include <private/app/MessengerPrivate.h>
 #include <private/shared/AutoDeleter.h>
 
-#include <VideoBuffer.h>
+class SwapChain;
+class SwapChainSpec;
 
 
 enum {
 	videoNodeConnectMsg          = 1,
-	videoNodeRequestSwapChainMsg = 2,
-	videoNodeSwapChainChangedMsg = 3,
-	videoNodePresentMsg          = 4,
-	videoNodePresentedMsg        = 5,
+	videoNodeConnectedMsg        = 2,
+	videoNodeRequestSwapChainMsg = 3,
+	videoNodeSwapChainChangedMsg = 4,
+	videoNodePresentMsg          = 5,
+	videoNodePresentedMsg        = 6,
+	videoNodeGetConsumerInfoMsg  = 7,
 
 	videoNodeInternalLastMsg     = 31,
 
@@ -28,10 +30,21 @@ private:
 	bool fIsConnected;
 	BMessenger fLink;
 	bool fSwapChainValid, fOwnsSwapChain;
-	SwapChain fSwapChain;
-	ArrayDeleter<VideoBuffer> fBuffers;
+	ObjectDeleter<SwapChain> fSwapChain;
 
 public:
+	struct ConsumerInfo {
+		int32 width;
+		int32 height;
+	};
+
+	struct PresentedInfo {
+		uint32 era;
+		bool suboptimal;
+		int32 width;
+		int32 height;
+	};
+	
 	VideoNode(const char* name = NULL);
 	virtual ~VideoNode();
 
@@ -42,7 +55,7 @@ public:
 
 	bool SwapChainValid() const {return fSwapChainValid;}
 	bool OwnsSwapChain() const {return fOwnsSwapChain;}
-	const SwapChain& GetSwapChain() const {return fSwapChain;}
+	const SwapChain& GetSwapChain() const {return *fSwapChain.Get();}
 	status_t SetSwapChain(const SwapChain* swapChain);
 	status_t RequestSwapChain(const SwapChainSpec& spec);
 	virtual status_t SwapChainRequested(const SwapChainSpec& spec);
@@ -53,6 +66,7 @@ public:
 
 
 void WriteMessenger(const BMessenger& obj);
+void DumpSwapChain(const SwapChain &swapChain);
 
 
 #endif	// _VIDEONODE_H_

@@ -1,4 +1,5 @@
 #include "VideoProducer.h"
+#include "VideoBuffer.h"
 
 #include <Region.h>
 #include <stdio.h>
@@ -82,27 +83,37 @@ status_t VideoProducer::Present(const BRegion* dirty)
 	return B_OK;
 }
 
-status_t VideoProducer::PresentedInt(int32 recycleId)
+status_t VideoProducer::PresentedInt(int32 recycleId, const PresentedInfo &presentedInfo)
 {
 	if (recycleId >= 0) {
 		fBufferPool.Add(recycleId);
 	}
-	if (fBufferPool.Length() > 0) {
-		Presented();
-	}
+	Presented(presentedInfo);
 	return B_OK;
 }
 
-void VideoProducer::Presented()
+void VideoProducer::Presented(const PresentedInfo &presentedInfo)
 {}
+
+status_t VideoProducer::GetConsumerInfo(ConsumerInfo &info)
+{
+	return ENOSYS;
+}
 
 void VideoProducer::MessageReceived(BMessage* msg)
 {
 	switch (msg->what) {
 	case videoNodePresentedMsg: {
+		PresentedInfo presentedInfo{};
 		int32 recycleId;
 		if (msg->FindInt32("recycleId", &recycleId) < B_OK) recycleId = -1;
-		PresentedInt(recycleId);
+		msg->FindUInt32("era", &presentedInfo.era);
+		if (msg->FindBool("suboptimal", &presentedInfo.suboptimal) < B_OK) presentedInfo.suboptimal = false;
+		if (presentedInfo.suboptimal) {
+			if (msg->FindInt32("width", &presentedInfo.width) < B_OK) presentedInfo.width = 0;
+			if (msg->FindInt32("height", &presentedInfo.height) < B_OK) presentedInfo.height = 0;
+		}
+		PresentedInt(recycleId, presentedInfo);
 		return;
 	}
 	}

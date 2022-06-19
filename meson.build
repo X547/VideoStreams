@@ -3,10 +3,11 @@ project('VideoStreams', 'cpp',
 	default_options : ['warning_level=3', 'cpp_std=c++2a']
 )
 
-add_project_arguments('-Wno-pedentic', language: 'cpp')
+add_project_arguments('-Wno-pedantic', language: 'cpp')
 add_project_arguments('-Wno-missing-field-initializers', language: 'cpp')
 
 compiler = meson.get_compiler('cpp')
+pkg = import('pkgconfig')
 
 sources = [
 	'VideoNode.cpp',
@@ -20,6 +21,9 @@ sources = [
 	'AreaCloner.cpp',
 	'TestProducerBase.cpp',
 	'BufferQueue.cpp',
+	'VideoBufferBindSW.cpp',
+	'VideoBufferBindBitmap.cpp',
+	'ConsumerView.cpp',
 ]
 
 VideoStreamsLib = shared_library(
@@ -34,7 +38,6 @@ VideoStreamsLib = shared_library(
 	],
 	gnu_symbol_visibility: 'hidden',
 	install: true,
-	install_dir: 'lib'
 )
 
 VideoStreams = declare_dependency(
@@ -45,3 +48,43 @@ VideoStreams = declare_dependency(
 		'/boot/system/develop/headers/private/shared',
 	]
 )
+
+install_headers(
+	[
+		'VideoNode.h',
+		'VideoProducer.h',
+		'VideoConsumer.h',
+		'VideoBuffer.h',
+		'BufferQueue.h',
+		'TestProducerBase.h',
+		'VideoBufferBindSW.h',
+		'VideoBufferBindBitmap.h',
+		'AreaCloner.h',
+		'RasBuf.h',
+		'CompositeProducer.h',
+		'CompositeConsumer.h',
+		'CompositeProxy.h',
+		'ConsumerView.h',
+	],
+	subdir: 'VideoStreams'
+)
+
+install_data(
+	'.PackageInfo',
+	install_dir: '.'
+)
+
+install_symlink('libvideostreams.so',
+    pointing_to: '../../lib/libvideostreams.so',
+    install_dir: 'develop/lib')
+
+pkg.generate(
+  VideoStreamsLib,
+  name: 'libvideostreams',
+  subdirs: ['VideoStreams'],
+  description: 'VideoStreams',
+  install_dir: 'develop/lib/pkgconfig'
+)
+
+
+subdir('Vulkan')

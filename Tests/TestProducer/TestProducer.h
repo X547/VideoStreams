@@ -28,7 +28,7 @@ public:
 
 	void Connected(bool isActive) final;
 	void SwapChainChanged(bool isValid) final;
-	void Presented() final;
+	void Presented(const PresentedInfo &presentedInfo) final;
 	void MessageReceived(BMessage* msg) final;
 };
 

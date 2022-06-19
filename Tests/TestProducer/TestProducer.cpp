@@ -69,12 +69,12 @@ void TestProducer::SwapChainChanged(bool isValid)
 	TestProducerBase::SwapChainChanged(isValid);
 }
 
-void TestProducer::Presented()
+void TestProducer::Presented(const PresentedInfo &presentedInfo)
 {
 	// printf("TestProducer::Presented()\n");
 	Produce();
 	//fMessageRunner.SetTo(new BMessageRunner(BMessenger(this), BMessage(stepMsg), 1000000/60, 1));
-	TestProducerBase::Presented();
+	TestProducerBase::Presented(presentedInfo);
 }
 
 void TestProducer::MessageReceived(BMessage* msg)

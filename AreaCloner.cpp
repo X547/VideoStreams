@@ -5,7 +5,7 @@
 
 MappedArea::MappedArea(area_id srcArea):
 	fSrcArea(srcArea),
-	fArea(clone_area("cloned buffer", (void**)&fAdr, B_ANY_ADDRESS, B_READ_AREA | B_WRITE_AREA, srcArea))
+	fArea(clone_area("cloned buffer", (void**)&fAdr, B_ANY_ADDRESS, B_READ_AREA | B_WRITE_AREA | B_CLONEABLE_AREA, srcArea))
 {
 	if (!fArea.IsSet()) {
 		printf("can't clone area, assuming kernel area\n");

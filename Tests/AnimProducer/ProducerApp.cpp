@@ -73,7 +73,7 @@ public:
 			SurfaceUpdate update = {
 				.valid = (1 << surfaceFrame) | (1 << surfaceDrawMode),
 				.frame = fProducers[i]->Bounds().OffsetByCopy(32 + 64*i, 32 + 48*i),
-				.drawMode = B_OP_ALPHA
+				.drawMode = B_OP_COPY
 			};
 
 			if (false) {

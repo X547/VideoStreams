@@ -6,6 +6,7 @@
 #include <private/shared/AutoDeleter.h>
 
 #include <VideoConsumer.h>
+#include <VideoBufferBindSW.h>
 
 #include "RasBuf.h"
 #include "CompositeProducer.h"
@@ -16,6 +17,7 @@ class _EXPORT CompositeConsumer final: public VideoConsumer
 private:
 	CompositeProducer* fBase;
 	Surface* fSurface;
+	SwapChainBindSW fSwapChainBind;
 	ArrayDeleter<ObjectDeleter<BBitmap> > fBitmaps;
 
 public:
@@ -27,6 +29,7 @@ public:
 
 	void Connected(bool isActive) final;
 	status_t SwapChainRequested(const SwapChainSpec& spec) final;
+	void SwapChainChanged(bool isValid) final;
 	virtual void Present(int32 bufferId, const BRegion* dirty) final;
 	BBitmap* DisplayBitmap();
 	RasBuf32 DisplayRasBuf();

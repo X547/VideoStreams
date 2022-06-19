@@ -1,5 +1,6 @@
 #include "CompositeConsumer.h"
 #include "VideoBufferUtils.h"
+#include <stdio.h>
 
 #define CheckRet(err) {status_t _err = (err); if (_err < B_OK) return _err;}
 
@@ -39,7 +40,7 @@ status_t CompositeConsumer::SwapChainRequested(const SwapChainSpec& spec)
 	
 	fBitmaps.SetTo(new ObjectDeleter<BBitmap>[bufferCnt]);
 	for (uint32 i = 0; i < bufferCnt; i++) {
-		fBitmaps[i].SetTo(new BBitmap(fSurface->frame.OffsetToCopy(B_ORIGIN), spec.bufferSpecs[i].colorSpace));
+		fBitmaps[i].SetTo(new BBitmap(fSurface->frame.OffsetToCopy(B_ORIGIN), spec.colorSpace));
 	}
 	SwapChain swapChain;
 	swapChain.size = sizeof(SwapChain);
@@ -53,6 +54,33 @@ status_t CompositeConsumer::SwapChainRequested(const SwapChainSpec& spec)
 	}
 	SetSwapChain(&swapChain);
 	return B_OK;
+}
+
+void CompositeConsumer::SwapChainChanged(bool isValid)
+{
+	VideoConsumer::SwapChainChanged(isValid);
+	if (!isValid) {
+		fSwapChainBind.Unset();
+		fBitmaps.Unset();
+		return;
+	}
+	if (!OwnsSwapChain()) {
+		fSwapChainBind.ConnectTo(GetSwapChain());
+		fBitmaps.SetTo(new ObjectDeleter<BBitmap>[GetSwapChain().bufferCnt]);
+		for (uint32 i = 0; i < GetSwapChain().bufferCnt; i++) {
+			const auto &buffer = GetSwapChain().buffers[i];
+			const auto &mappedBuffer = fSwapChainBind.Buffers()[i];
+			printf("mappedBuffers[%" B_PRIu32 "]: %" B_PRId32 "\n", i, mappedBuffer.area->GetArea());
+			fBitmaps[i].SetTo(new BBitmap(
+				mappedBuffer.area->GetArea(),
+				buffer.ref.offset,
+				BRect(0, 0, buffer.format.width - 1, buffer.format.height - 1),
+				0,
+				buffer.format.colorSpace,
+				buffer.format.bytesPerRow
+			));
+		}
+	}
 }
 
 void CompositeConsumer::Present(int32 bufferId, const BRegion* dirty)
@@ -70,7 +98,8 @@ void CompositeConsumer::Present(int32 bufferId, const BRegion* dirty)
 		}
 	}
 	fBase->InvalidateSurface(this, dirty);
-	Presented();
+	PresentedInfo presentedInfo{};
+	Presented(presentedInfo);
 }
 
 BBitmap* CompositeConsumer::DisplayBitmap()
@@ -83,5 +112,19 @@ BBitmap* CompositeConsumer::DisplayBitmap()
 
 RasBuf32 CompositeConsumer::DisplayRasBuf()
 {
+	int32 bufferId = DisplayBufferId();
+	if (bufferId < 0) {
+		return RasBuf32 {};
+	}
+	if (!OwnsSwapChain()) {
+		const auto &buffer = GetSwapChain().buffers[bufferId];
+		const auto &mappedBuffer = fSwapChainBind.Buffers()[bufferId];
+		return RasBuf32 {
+			.colors = (uint32*)mappedBuffer.bits,
+			.stride = buffer.format.bytesPerRow/4,
+			.width = buffer.format.width,
+			.height = buffer.format.height,
+		};
+	}
 	return RasBufFromFromBitmap(DisplayBitmap());
 }
