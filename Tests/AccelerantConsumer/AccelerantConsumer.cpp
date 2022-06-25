@@ -443,7 +443,7 @@ status_t AccelerantConsumer::SwapChainRequested(const SwapChainSpec& spec)
 	return B_OK;
 }
 
-void AccelerantConsumer::Present(const BRegion* dirty)
+void AccelerantConsumer::Present(int32 bufferId, const BRegion* dirty)
 {
 	fQueueLen++;
 	//fHooks.move_display_area_hook(0, fDm.timing.v_display*DisplayBufferId());

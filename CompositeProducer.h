@@ -60,7 +60,9 @@ private:
 	uint32 fValidPrevBufCnt;
 	BRegion fDirty, fPrevDirty;
 	bool fUpdateRequested;
+	int32 fPending = 0;
 
+	void UpdateSwapChain(int32 width, int32 height);
 	void Restore(const BRegion& dirty);
 
 public:

@@ -80,14 +80,14 @@ public:
 		return B_OK;
 	}
 
-	virtual void Present(const BRegion* dirty)
+	void Present(int32 bufferId, const BRegion* dirty) final
 	{
 		int32 height = Wnd()->FrameBufferInfo()->height/2;
-		Wnd()->MoveDisplayArea(0, height*DisplayBufferId());
+		Wnd()->MoveDisplayArea(0, height*bufferId);
 		PresentedInfo presentedInfo {};
 		Presented(presentedInfo);
 	}
-	
+
 };
 
 class TestView: public BView

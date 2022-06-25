@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.h>
 
 class SwapChain;
+class SwapChainSpec;
 
 
 class _EXPORT SwapChainBindVulkan {
@@ -22,7 +23,9 @@ private:
 	ArrayDeleter<BindedBuffer> fBindedBuffers;
 
 public:
-	void ConnectTo(const SwapChain *swapChain);
+	void Unset();
+	status_t ConnectTo(const SwapChain &swapChain);
+	status_t Alloc(ObjectDeleter<SwapChain> &swapChain, const SwapChainSpec &spec);
 
 	BindedBuffer *Buffers() {return fBindedBuffers.Get();}
 };

@@ -8,6 +8,37 @@
 #define CheckRet(err) {status_t _err = (err); if (_err < B_OK) return _err;}
 
 
+//#pragma mark - VideoConsumerProxy
+
+class VideoConsumerProxy {
+private:
+	BMessenger fLink;
+
+public:
+	VideoConsumerProxy(const BMessenger& link): fLink(link) {}
+	const BMessenger &Link() {return fLink;}
+
+	status_t Present(int32 bufferId, const BRegion* dirty, uint32 era);
+};
+
+status_t VideoConsumerProxy::Present(int32 bufferId, const BRegion* dirty, uint32 era)
+{
+	BMessage msg(videoNodePresentMsg);
+	msg.AddInt32("bufferId", bufferId);
+	msg.AddUInt32("era", era);
+
+	if (dirty != NULL) {
+		for (int32 i = 0; i < dirty->CountRects(); i++) {
+			msg.AddRect("dirty", dirty->RectAt(i));
+		}
+	}
+
+	return Link().SendMessage(&msg);
+}
+
+
+//#pragma mark - VideoProducer
+
 VideoProducer::VideoProducer(const char* name):
 	VideoNode(name), fEra(0)
 {}
@@ -56,20 +87,8 @@ status_t VideoProducer::Present(int32 bufferId, const BRegion* dirty)
 	if (!IsConnected() || !SwapChainValid())
 		return B_NOT_ALLOWED;
 
-	BMessage msg(videoNodePresentMsg);
-	msg.AddInt32("bufferId", bufferId);
-	msg.AddUInt32("era", fEra);
-
-	if (dirty != NULL) {
-		for (int32 i = 0; i < dirty->CountRects(); i++) {
-			msg.AddRect("dirty", dirty->RectAt(i));
-		}
-	}
-
-	CheckRet(Link().SendMessage(&msg));
-
+	CheckRet(VideoConsumerProxy(Link()).Present(bufferId, dirty, fEra));
 	fEra++;
-
 	return B_OK;
 }
 

@@ -65,5 +65,5 @@ public:
 
 	void Connected(bool isActive) final;
 	status_t SwapChainRequested(const SwapChainSpec& spec) final;
-	void Present(const BRegion* dirty) final;
+	void Present(int32 bufferId, const BRegion* dirty) final;
 };

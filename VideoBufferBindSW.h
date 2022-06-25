@@ -23,8 +23,8 @@ private:
 
 public:
 	void Unset();
-	void ConnectTo(const SwapChain &swapChain);
-	void Alloc(ObjectDeleter<SwapChain> &swapChain, const SwapChainSpec &spec);
+	status_t ConnectTo(const SwapChain &swapChain);
+	status_t Alloc(ObjectDeleter<SwapChain> &swapChain, const SwapChainSpec &spec);
 
 	BindedBuffer *Buffers() {return fBindedBuffers.Get();}
 };

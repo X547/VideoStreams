@@ -79,7 +79,7 @@ public:
 	TestApplication(): BApplication("application/x-vnd.VideoStreams-TestProducer")
 	{
 		BMessenger consumer;
-		while (!FindConsumerGfx(consumer)) {
+		while (!FindConsumer(consumer)) {
 			snooze(100000);
 		}
 		printf("consumer: "); WriteMessenger(consumer); printf("\n");

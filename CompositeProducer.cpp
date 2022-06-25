@@ -105,20 +105,28 @@ void CompositeProducer::Connected(bool isActive)
 		WriteMessenger(Link());
 		printf("\n");
 
-		SwapChainSpec spec;
-		spec.size = sizeof(SwapChainSpec);
-		spec.presentEffect = presentEffectSwap;
-		spec.bufferCnt = 2;
-		spec.kind = bufferRefArea;
-		spec.colorSpace = B_RGBA32;
-		if (RequestSwapChain(spec) < B_OK) {
-			printf("[!] can't request swap chain\n");
-			exit(1);
-		}
+		UpdateSwapChain(0, 0);
 	} else {
 		printf("CompositeProducer: disconnected\n");
 		be_app_messenger.SendMessage(B_QUIT_REQUESTED);
 	}
+}
+
+void CompositeProducer::UpdateSwapChain(int32 width, int32 height)
+{
+		SwapChainSpec spec {
+			.size = sizeof(SwapChainSpec),
+			.presentEffect = presentEffectSwap,
+			.bufferCnt = 2,
+			.kind = bufferRefArea,
+			.width = width,
+			.height = height,
+			.colorSpace = B_RGBA32
+		};
+		if (RequestSwapChain(spec) < B_OK) {
+			printf("[!] can't request swap chain\n");
+			exit(1);
+		}
 }
 
 void CompositeProducer::SwapChainChanged(bool isValid)
@@ -143,10 +151,17 @@ void CompositeProducer::SwapChainChanged(bool isValid)
 void CompositeProducer::Presented(const PresentedInfo &presentedInfo)
 {
 	// printf("CompositeProducer::Presented()\n");
-	if (!fUpdateRequested && fDirty.CountRects() > 0) {
-		fUpdateRequested = true;
-		BMessage msg(stepMsg);
-		BMessenger(this).SendMessage(&msg);
+	fPending--;
+	if (presentedInfo.suboptimal) {
+		if (fPending == 0) {
+			UpdateSwapChain(presentedInfo.width, presentedInfo.height);
+		}
+	} else {
+		if (!fUpdateRequested && fDirty.CountRects() > 0) {
+			fUpdateRequested = true;
+			BMessage msg(stepMsg);
+			BMessenger(this).SendMessage(&msg);
+		}
 	}
 	VideoProducer::Presented(presentedInfo);
 }
@@ -274,6 +289,7 @@ void CompositeProducer::Produce()
 			}
 			Restore(combinedDirty);
 			fPrevDirty = dirty;
+			fPending++;
 			Present(fValidPrevBufCnt == 1 ? &combinedDirty : &dirty);
 			break;
 		}
@@ -287,6 +303,7 @@ void CompositeProducer::Produce()
 				fValidPrevBufCnt++;
 			}
 			Restore(dirty);
+			fPending++;
 			Present(&dirty);
 			break;
 		}

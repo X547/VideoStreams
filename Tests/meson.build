@@ -11,6 +11,7 @@ VideoStreamsProj = subproject('VideoStreams')
 VideoStreams = VideoStreamsProj.get_variable('VideoStreams')
 
 subdir('TestProducer')
+subdir('TestProducerLoop')
 subdir('VideoFileProducer')
 subdir('AnimProducer')
 subdir('WindowConsumer')

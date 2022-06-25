@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <private/shared/AutoDeleter.h>
+#include <private/shared/AutoDeleterOS.h>
 
 #include <VideoProducer.h>
-#include "CompositeProducer.h"
+#include <VideoBufferBindSW.h>
+#include "AppKitPtrs.h"
 
 
 static bool FindConsumer(BMessenger& consumer)
@@ -66,34 +68,97 @@ static bool FindConsumerGfx(BMessenger& consumer)
 }
 
 
-class TestApplication: public BApplication
-{
-private:
-	ObjectDeleter<CompositeProducer> fProducer;
 
+class ProducerApp {
 public:
-	TestApplication(): BApplication("application/x-vnd.VideoStreams-Compositor")
-	{
-		BMessenger consumer;
-		while (!FindConsumer(consumer)) {
-			snooze(100000);
-		}
-		printf("consumer: "); WriteMessenger(consumer); printf("\n");
-		fProducer.SetTo(new CompositeProducer("compositeProducer"));
-		AddHandler(fProducer.Get());
-		printf("+TestProducer: "); WriteMessenger(BMessenger(fProducer.Get())); printf("\n");
+	VideoProducer *fProducer;
+	BLooper *fProducerLooper;
+	SwapChainBindSW fSwapChainBind;
 
-		if (fProducer->ConnectTo(consumer) < B_OK) {
+	void Init(const BMessenger &consumer)
+	{
+		fProducer = new VideoProducer("producer");
+		fProducerLooper = new BLooper("producer");
+		fProducerLooper->AddHandler(fProducer);
+		fProducerLooper->Run();
+
+		if (AppKitPtrs::LockedPtr(fProducer)->ConnectTo(consumer) < B_OK) {
 			printf("[!] can't connect to consumer\n");
 			exit(1);
+		}
+
+		SwapChainSpec spec {
+			.size = sizeof(SwapChainSpec),
+			.presentEffect = presentEffectSwap,
+			.bufferCnt = 2,
+			.kind = bufferRefArea,
+			.width = 640,
+			.height = 480,
+			.colorSpace = B_RGBA32
+		};
+		if (AppKitPtrs::LockedPtr(fProducer)->RequestSwapChain(spec) < B_OK) {
+			printf("[!] can't request swap chain\n");
+			abort();
+		}
+	}
+
+	~ProducerApp()
+	{
+		AppKitPtrs::LockedPtr(fProducer)->ConnectTo(BMessenger());
+		fProducerLooper->Quit();
+		delete fProducer;
+	}
+
+	void Draw(int32 bufferId)
+	{
+	}
+
+	void RunLoop()
+	{
+		bool quit = false;
+		while (!quit) {
+			int32 bufferId = -1;
+			for (;;) {
+				bufferId = AppKitPtrs::LockedPtr(fProducer)->AllocBuffer();
+				if (bufferId >= 0) break;
+				snooze(1000);
+			}
+			Draw(bufferId);
+			AppKitPtrs::LockedPtr(fProducer)->Present(bufferId);
 		}
 	}
 };
 
 
+class TestApplication: public BApplication {
+public:
+	using BApplication::BApplication;
+	virtual ~TestApplication() {}
+
+	thread_id Run() {
+		return BLooper::Run();
+	}
+	
+	void Quit() {
+		BLooper::Quit();
+	}
+	
+};
+
+
 int main()
 {
-	TestApplication app;
-	app.Run();
+	TestApplication *app = new TestApplication("application/x-vnd.VideoStreams-TestProducer");
+	app->Run();
+
+	BMessenger consumer;
+	while (!FindConsumer(consumer)) {
+		snooze(100000);
+	}
+	printf("consumer: "); WriteMessenger(consumer); printf("\n");
+
+	ProducerApp producerApp;
+	producerApp.Init(consumer);
+	producerApp.RunLoop();
 	return 0;
 }

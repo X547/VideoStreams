@@ -16,7 +16,6 @@ private:
 	uint32 fEra;
 
 	void PresentInt(int32 bufferId, uint32 producerEra);
-	status_t PresentedInt(int32 bufferId, const PresentedInfo &presentedInfo);
 
 public:
 	VideoConsumer(const char* name = NULL);
@@ -29,8 +28,8 @@ public:
 	VideoBuffer* DisplayBuffer();
 
 	status_t Presented(const PresentedInfo &presentedInfo);
+
 	virtual void Present(int32 bufferId, const BRegion* dirty);
-	virtual void Present(const BRegion* dirty);
 
 	void MessageReceived(BMessage* msg) override;
 };

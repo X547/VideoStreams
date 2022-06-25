@@ -123,7 +123,7 @@ void AnimProducer::Load(const char *path)
 	fBitmaps.MakeEmpty();
 	for (int i = 0;; i++) {
 		BString filePath;
-		filePath.SetToFormat("%s/comipo24bit%02d.png", path, i + 1);
+		filePath.SetToFormat("%s/%02d.png", path, i + 1);
 		BFile file(filePath, B_READ_ONLY);
 		if (file.InitCheck() < B_OK) break;
 		printf("%s\n", filePath.String());

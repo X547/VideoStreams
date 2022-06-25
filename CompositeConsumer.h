@@ -6,7 +6,7 @@
 #include <private/shared/AutoDeleter.h>
 
 #include <VideoConsumer.h>
-#include <VideoBufferBindSW.h>
+#include <VideoBufferBindBitmap.h>
 
 #include "RasBuf.h"
 #include "CompositeProducer.h"
@@ -17,13 +17,15 @@ class _EXPORT CompositeConsumer final: public VideoConsumer
 private:
 	CompositeProducer* fBase;
 	Surface* fSurface;
-	SwapChainBindSW fSwapChainBind;
-	ArrayDeleter<ObjectDeleter<BBitmap> > fBitmaps;
+	SwapChainBindBitmap fSwapChainBind;
+	uint32 fBitmapCnt = 0;
+	BBitmap *fDisplayBitmap = NULL;
+	ObjectDeleter<BBitmap> fDisplayBitmapDeleter;
 
 public:
 	CompositeConsumer(const char* name, CompositeProducer* base, Surface* surface);
 	virtual ~CompositeConsumer();
-	
+
 	inline class CompositeProducer* Base() {return fBase;}
 	inline class Surface* GetSurface() {return fSurface;}
 

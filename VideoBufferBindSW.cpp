@@ -8,7 +8,7 @@ void SwapChainBindSW::Unset()
 	fBindedBuffers.Unset();
 }
 
-void SwapChainBindSW::ConnectTo(const SwapChain &swapChain)
+status_t SwapChainBindSW::ConnectTo(const SwapChain &swapChain)
 {
 	fBindedBuffers.SetTo(new BindedBuffer[swapChain.bufferCnt]);
 	for (uint32 i = 0; i < swapChain.bufferCnt; i++) {
@@ -22,9 +22,10 @@ void SwapChainBindSW::ConnectTo(const SwapChain &swapChain)
 			mappedBuffer.bits = mappedBuffer.area->GetAddress() + swapChain.buffers[i].ref.offset;
 		}
 	}
+	return B_OK;
 }
 
-void SwapChainBindSW::Alloc(ObjectDeleter<SwapChain> &swapChain, const SwapChainSpec &spec)
+status_t SwapChainBindSW::Alloc(ObjectDeleter<SwapChain> &swapChain, const SwapChainSpec &spec)
 {
 	uint8 *swapChainMem = (uint8*)::operator new(sizeof(SwapChain) + spec.bufferCnt*sizeof(VideoBuffer));
 	VideoBuffer *buffers = (VideoBuffer*)(swapChainMem + sizeof(SwapChain));
@@ -56,4 +57,5 @@ void SwapChainBindSW::Alloc(ObjectDeleter<SwapChain> &swapChain, const SwapChain
 		mappedBuffer.ownedArea.SetTo(create_area("VideoStreams buffer", (void**)&mappedBuffer.bits, B_ANY_ADDRESS, buffer.ref.size, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA | B_CLONEABLE_AREA));
 		buffer.ref.area.id = mappedBuffer.ownedArea.Get();
 	}
+	return B_OK;
 }

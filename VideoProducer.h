@@ -8,8 +8,11 @@ class VideoBuffer;
 class BRegion;
 
 
-class _EXPORT VideoProducer: public VideoNode
-{
+class VideoProducerProxyBase {
+	virtual status_t PresentedInt(int32 recycleId, const VideoNode::PresentedInfo &presentedInfo) = 0;
+};
+
+class _EXPORT VideoProducer: public VideoNode {
 private:
 	BufferQueue fBufferPool;
 	uint32 fEra;
@@ -29,8 +32,9 @@ public:
 	VideoBuffer* RenderBuffer();
 	status_t Present(int32 bufferId, const BRegion* dirty = NULL);
 	status_t Present(const BRegion* dirty = NULL);
-	virtual void Presented(const PresentedInfo &presentedInfo);
 	status_t GetConsumerInfo(ConsumerInfo &info);
+
+	virtual void Presented(const PresentedInfo &presentedInfo);
 
 	void MessageReceived(BMessage* msg) override;
 };

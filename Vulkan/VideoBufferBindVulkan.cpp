@@ -22,15 +22,16 @@ static uint32_t getMemoryTypeIndex(VkPhysicalDevice physDev, uint32_t typeBits, 
 }
 
 
-void SwapChainBindVulkan::ConnectTo(const SwapChain *swapChain)
+void SwapChainBindVulkan::Unset()
 {
-	if (swapChain == NULL) {
-		fBindedBuffers.Unset();
-		return;
-	}
-	fBindedBuffers.SetTo(new BindedBuffer[swapChain->bufferCnt]);
-	for (uint32 i = 0; i < swapChain->bufferCnt; i++) {
-		const auto &buffer = swapChain->buffers[i];
+	fBindedBuffers.Unset();
+}
+
+status_t SwapChainBindVulkan::ConnectTo(const SwapChain &swapChain)
+{
+	fBindedBuffers.SetTo(new BindedBuffer[swapChain.bufferCnt]);
+	for (uint32 i = 0; i < swapChain.bufferCnt; i++) {
+		const auto &buffer = swapChain.buffers[i];
 		auto &bindedBuffer = fBindedBuffers[i];
 
 		VkImageCreateInfo createInfo {
@@ -85,4 +86,5 @@ void SwapChainBindVulkan::ConnectTo(const SwapChain *swapChain)
 			}
 		}
 	}
+	return B_OK;
 }

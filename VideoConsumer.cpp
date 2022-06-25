@@ -9,6 +9,36 @@
 #define CheckRet(err) {status_t _err = (err); if (_err < B_OK) return _err;}
 
 
+//#pragma mark - VideoProducerProxy
+
+class VideoProducerProxy {
+private:
+	BMessenger fLink;
+
+public:
+	VideoProducerProxy(const BMessenger& link): fLink(link) {}
+	const BMessenger &Link() {return fLink;}
+
+	status_t PresentedInt(int32 bufferId, const VideoConsumer::PresentedInfo &presentedInfo);
+};
+
+status_t VideoProducerProxy::PresentedInt(int32 bufferId, const VideoConsumer::PresentedInfo &presentedInfo)
+{
+	//printf("VideoConsumerProxy::Presented(%" B_PRId32 ", %" B_PRIu32 ")\n", bufferId, era);
+	BMessage msg(videoNodePresentedMsg);
+	if (bufferId >= 0) msg.AddInt32("recycleId", bufferId);
+	msg.AddUInt32("era", presentedInfo.era);
+	if (presentedInfo.suboptimal) {
+		msg.AddBool("suboptimal", presentedInfo.suboptimal);
+		msg.AddInt32("width", presentedInfo.width);
+		msg.AddInt32("height", presentedInfo.height);
+	}
+	return Link().SendMessage(&msg);
+}
+
+
+//#pragma mark - VideoConsumer
+
 VideoConsumer::VideoConsumer(const char* name):
 	VideoNode(name), fDisplayBufferId(-1), fEra(0)
 {}
@@ -63,14 +93,16 @@ status_t VideoConsumer::Presented(const PresentedInfo &presentedInfo)
 	if (!IsConnected() || !SwapChainValid())
 		return B_NOT_ALLOWED;
 
+	PresentedInfo presentedInfo2 = presentedInfo;
+	presentedInfo2.era = fEra;
 	switch (GetSwapChain().presentEffect) {
 		case presentEffectSwap: {
-			PresentedInt(fDisplayBufferId, presentedInfo);
+			VideoProducerProxy(Link()).PresentedInt(fDisplayBufferId, presentedInfo2);
 			fDisplayBufferId = fDisplayQueue.Remove();
 			break;
 		}
 		case presentEffectCopy: {
-			PresentedInt(fDisplayQueue.Remove(), presentedInfo);
+			VideoProducerProxy(Link()).PresentedInt(fDisplayQueue.Remove(), presentedInfo2);
 			break;
 		}
 		default:
@@ -87,28 +119,9 @@ status_t VideoConsumer::Presented(const PresentedInfo &presentedInfo)
 
 // #pragma mark -
 
-status_t VideoConsumer::PresentedInt(int32 bufferId, const PresentedInfo &presentedInfo)
-{
-	//printf("VideoConsumer::PresentedInt(%" B_PRId32 ", %" B_PRIu32 ")\n", bufferId, fEra);
-	BMessage msg(videoNodePresentedMsg);
-	if (bufferId >= 0) msg.AddInt32("recycleId", bufferId);
-	msg.AddUInt32("era", fEra);
-	if (presentedInfo.suboptimal) {
-		msg.AddBool("suboptimal", presentedInfo.suboptimal);
-		msg.AddInt32("width", presentedInfo.width);
-		msg.AddInt32("height", presentedInfo.height);
-	}
-	CheckRet(Link().SendMessage(&msg));
-	return B_OK;
-}
-
 void VideoConsumer::Present(int32 bufferId, const BRegion* dirty)
 {
-	Present(dirty);
 }
-
-void VideoConsumer::Present(const BRegion* dirty)
-{}
 
 
 void VideoConsumer::MessageReceived(BMessage* msg)

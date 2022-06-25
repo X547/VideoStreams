@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <private/shared/AutoDeleter.h>
+#include <private/shared/AutoDeleterOS.h>
 
 #include <VideoProducer.h>
-#include "CompositeProducer.h"
+#include "TestProducerBase.h"
+#include "TestProducer.h"
 
 
 static bool FindConsumer(BMessenger& consumer)
@@ -69,17 +71,17 @@ static bool FindConsumerGfx(BMessenger& consumer)
 class TestApplication: public BApplication
 {
 private:
-	ObjectDeleter<CompositeProducer> fProducer;
+	ObjectDeleter<TestProducer> fProducer;
 
 public:
-	TestApplication(): BApplication("application/x-vnd.VideoStreams-Compositor")
+	TestApplication(): BApplication("application/x-vnd.VideoStreams-TestProducer")
 	{
 		BMessenger consumer;
-		while (!FindConsumer(consumer)) {
+		while (!FindConsumerGfx(consumer)) {
 			snooze(100000);
 		}
 		printf("consumer: "); WriteMessenger(consumer); printf("\n");
-		fProducer.SetTo(new CompositeProducer("compositeProducer"));
+		fProducer.SetTo(new TestProducer("testProducer"));
 		AddHandler(fProducer.Get());
 		printf("+TestProducer: "); WriteMessenger(BMessenger(fProducer.Get())); printf("\n");
 

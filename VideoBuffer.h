@@ -4,6 +4,7 @@
 
 #include <OS.h>
 #include <InterfaceDefs.h>
+#include <AutoDeleter.h>
 
 
 enum PresentEffect {
@@ -60,6 +61,11 @@ struct SwapChain {
 	PresentEffect presentEffect;
 	uint32 bufferCnt;
 	VideoBuffer* buffers;
+
+	static SwapChain *New(uint32 bufferCnt);
+	status_t Copy(ObjectDeleter<SwapChain> &dst) const;
+	static status_t NewFromMessage(ObjectDeleter<SwapChain> &dst, const BMessage& msg, const char *name);
+	status_t ToMessage(BMessage& msg, const char *name) const;
 };
 
 
