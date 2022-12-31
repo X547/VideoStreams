@@ -74,16 +74,11 @@ install_data(
 	install_dir: '.'
 )
 
-install_symlink('libvideostreams.so',
-    pointing_to: '../../lib/libvideostreams.so',
-    install_dir: 'develop/lib')
-
 pkg.generate(
   VideoStreamsLib,
   name: 'libvideostreams',
   subdirs: ['VideoStreams'],
   description: 'VideoStreams',
-  install_dir: 'develop/lib/pkgconfig'
 )
 
 
