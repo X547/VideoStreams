@@ -116,8 +116,11 @@ void VideoNode::Connected(bool isActive)
 
 status_t VideoNode::SetSwapChain(const SwapChain* swapChain)
 {
-	printf("VideoNode::SetSwapChain()\n");
-	
+	printf("VideoNode::SetSwapChain(%p)\n", swapChain);
+	if (swapChain != NULL) {
+		DumpSwapChain(*swapChain);
+	}
+
 	if (swapChain == NULL) {
 		if (!SwapChainValid())
 			return B_OK;

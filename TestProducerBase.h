@@ -18,6 +18,7 @@ class _EXPORT TestProducerBase: public VideoProducer
 {
 private:
 	SwapChainBindSW fSwapChainBind;
+	int32 fPending = 0;
 	uint32 fValidPrevBufCnt;
 
 	BRegion fPrevDirty;
@@ -38,6 +39,7 @@ public:
 
 	void Connected(bool isActive) override;
 	void SwapChainChanged(bool isValid) override;
+	void Presented(const PresentedInfo &presentedInfo) override;
 };
 
 

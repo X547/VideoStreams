@@ -95,9 +95,9 @@ void VideoFileProducer::SwapChainChanged(bool isValid)
 
 void VideoFileProducer::Presented(const PresentedInfo &presentedInfo)
 {
+	TestProducerBase::Presented(presentedInfo);
 	// printf("VideoFileProducer::Presented()\n");
 	//fMessageRunner.SetTo(new BMessageRunner(BMessenger(this), BMessage(stepMsg), 1000000/60, 1));
-	TestProducerBase::Presented(presentedInfo);
 	Produce();
 }
 

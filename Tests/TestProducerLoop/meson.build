@@ -1,6 +1,5 @@
 sources = [
 	'ProducerApp.cpp',
-	'TestProducer.cpp',
 ]
 
 TestProducerLoop = executable(

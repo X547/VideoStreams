@@ -1,12 +1,12 @@
 #include "VideoProducer.h"
 #include "VideoBuffer.h"
 
+#include <Looper.h>
 #include <Region.h>
 #include <stdio.h>
 
-
 #define CheckRet(err) {status_t _err = (err); if (_err < B_OK) return _err;}
-
+static void Assert(bool cond) {if (!cond) abort();}
 
 //#pragma mark - VideoConsumerProxy
 
@@ -37,6 +37,17 @@ status_t VideoConsumerProxy::Present(int32 bufferId, const BRegion* dirty, uint3
 }
 
 
+static void DumpBufferPool(BufferQueue &bufferPool)
+{
+	printf("bufferPool: (");
+	for (int32 i = 0; i < bufferPool.Length(); i++) {
+		if (i > 0) printf(", ");
+		printf("%" B_PRId32, bufferPool.ItemAt(i));
+	}
+	printf(")\n");
+}
+
+
 //#pragma mark - VideoProducer
 
 VideoProducer::VideoProducer(const char* name):
@@ -44,7 +55,15 @@ VideoProducer::VideoProducer(const char* name):
 {}
 
 VideoProducer::~VideoProducer()
-{}
+{
+	for (;;) {
+		ObjectDeleter<AllocBufferWaitItem> item(fAllocBufferWaitList.RemoveHead());
+		if (!item.IsSet()) break;
+		BMessage reply(B_REPLY);
+		reply.AddInt32("bufferId", -1);
+		item->message->SendReply(&reply);
+	}
+}
 
 
 void VideoProducer::SwapChainChanged(bool isValid)
@@ -55,6 +74,8 @@ void VideoProducer::SwapChainChanged(bool isValid)
 	for (int32 i = (!isValid || GetSwapChain().presentEffect == presentEffectSwap) ? 0 : 1; i < bufferCnt; i++) {
 		fBufferPool.Add(i);
 	}
+	printf("VideoProducer::SwapChainChanged(%d)\n", isValid);
+	DumpBufferPool(fBufferPool);
 }
 
 
@@ -66,6 +87,21 @@ int32 VideoProducer::RenderBufferId()
 int32 VideoProducer::AllocBuffer()
 {
 	return fBufferPool.Remove();
+}
+
+int32 VideoProducer::AllocBufferWait()
+{
+	int32 bufferId = AllocBuffer();
+	if (bufferId >= 0) {
+		return bufferId;
+	}
+	UnlockLooper();
+	BMessage msg(videoNodeAllocBufferMsg);
+	BMessage reply;
+	BMessenger(this).SendMessage(&msg, &reply);
+	if (reply.FindInt32("bufferId", &bufferId) < B_OK) bufferId = -1;
+	LockLooper();
+	return bufferId;
 }
 
 bool VideoProducer::FreeBuffer(int32 bufferId)
@@ -84,8 +120,15 @@ VideoBuffer* VideoProducer::RenderBuffer()
 
 status_t VideoProducer::Present(int32 bufferId, const BRegion* dirty)
 {
+	printf("VideoProducer::Present(%" B_PRId32 ")\n", bufferId);
+	DumpBufferPool(fBufferPool);
 	if (!IsConnected() || !SwapChainValid())
 		return B_NOT_ALLOWED;
+
+	int32 idx = fBufferPool.FindItem(bufferId);
+	if (idx >= 0) {
+		fBufferPool.RemoveAt(idx);
+	}
 
 	CheckRet(VideoConsumerProxy(Link()).Present(bufferId, dirty, fEra));
 	fEra++;
@@ -94,18 +137,28 @@ status_t VideoProducer::Present(int32 bufferId, const BRegion* dirty)
 
 status_t VideoProducer::Present(const BRegion* dirty)
 {
-	if ((RenderBufferId() < 0))
+	int32 bufferId = AllocBuffer();
+	if (bufferId < 0)
 		return B_NOT_ALLOWED;
 
-	CheckRet(Present(RenderBufferId(), dirty));
-	AllocBuffer();
+	CheckRet(Present(bufferId, dirty));
 	return B_OK;
 }
 
 status_t VideoProducer::PresentedInt(int32 recycleId, const PresentedInfo &presentedInfo)
 {
+	printf("VideoProducer::PresentedInt(%" B_PRId32 ")\n", recycleId);
+	DumpBufferPool(fBufferPool);
 	if (recycleId >= 0) {
-		fBufferPool.Add(recycleId);
+		Assert(fBufferPool.FindItem(recycleId) < 0);
+		Assert(fBufferPool.Add(recycleId));
+	}
+	while (fBufferPool.Begin() >= 0) {
+		ObjectDeleter<AllocBufferWaitItem> item(fAllocBufferWaitList.RemoveHead());
+		if (!item.IsSet()) break;
+		BMessage reply(B_REPLY);
+		reply.AddInt32("bufferId", AllocBuffer());
+		item->message->SendReply(&reply);
 	}
 	Presented(presentedInfo);
 	return B_OK;
@@ -133,6 +186,19 @@ void VideoProducer::MessageReceived(BMessage* msg)
 			if (msg->FindInt32("height", &presentedInfo.height) < B_OK) presentedInfo.height = 0;
 		}
 		PresentedInt(recycleId, presentedInfo);
+		return;
+	}
+	case videoNodeAllocBufferMsg: {
+		int32 bufferId = AllocBuffer();
+		if (bufferId >= 0) {
+			BMessage reply(B_REPLY);
+			reply.AddInt32("bufferId", bufferId);
+			msg->SendReply(&reply);
+			return;
+		}
+		AllocBufferWaitItem *item = new AllocBufferWaitItem();
+		item->message.SetTo(Looper()->DetachCurrentMessage());
+		fAllocBufferWaitList.Insert(item);
 		return;
 	}
 	}

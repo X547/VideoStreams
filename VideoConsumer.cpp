@@ -7,6 +7,7 @@
 
 #define CheckRetVoid(err) {status_t _err = (err); if (_err < B_OK) return;}
 #define CheckRet(err) {status_t _err = (err); if (_err < B_OK) return _err;}
+static void Assert(bool cond) {if (!cond) abort();}
 
 
 //#pragma mark - VideoProducerProxy
@@ -81,7 +82,8 @@ VideoBuffer* VideoConsumer::DisplayBuffer()
 void VideoConsumer::PresentInt(int32 bufferId, uint32 producerEra)
 {
 	//printf("VideoConsumer::PresentInt(%" B_PRId32 ", %" B_PRIu32 ")\n", bufferId, producerEra);
-	fDisplayQueue.Add(bufferId);
+
+	Assert(fDisplayQueue.Add(bufferId));
 	if (fDisplayQueue.Length() == 1) {
 		BRegion& dirty = fDirtyRegions[bufferId];
 		Present(bufferId, dirty.CountRects() > 0 ? &dirty : NULL);

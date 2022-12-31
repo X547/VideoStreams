@@ -11,6 +11,7 @@
 inline int32 ReplaceError(int32 err, int32 replaceWith) {return err < B_OK ? replaceWith : err;}
 #define CheckRet(err) {status_t _err = (err); if (_err < B_OK) return _err;}
 #define CheckReply(msg, err) {status_t _err = (err); if (_err < B_OK) {BMessage reply(B_REPLY); reply.AddInt32("error", _err); msg->SendReply(&reply); return;}}
+static void Assert(bool cond) {if (!cond) abort();}
 
 
 /*
@@ -53,6 +54,14 @@ CompositeProducer::~CompositeProducer()
 }
 
 
+static void FillRegion(const RasBuf32 &rb, const BRegion& region, uint32 color)
+{
+	for (int32 i = 0; i < region.CountRects(); i++) {
+		clipping_rect rect = region.RectAtInt(i);
+		rb.Clip2(rect.left, rect.top, rect.right + 1, rect.bottom + 1).Clear(color);
+	}
+}
+
 static void DrawSurface(const RasBuf32& dst, Surface* surf, const BRegion& clipping)
 {
 	RasBuf32 displayRb = surf->consumer->DisplayRasBuf();
@@ -77,13 +86,13 @@ static void DrawSurface(const RasBuf32& dst, Surface* surf, const BRegion& clipp
 	}
 }
 
-void CompositeProducer::Restore(const BRegion& dirty)
+void CompositeProducer::Restore(int32 bufferId, const BRegion& dirty)
 {
 	//printf("CompositeProducer::Restore((%" B_PRId32 ", %" B_PRId32 ", %" B_PRId32 ", %" B_PRId32 "))\n", dirty.FrameInt().left, dirty.FrameInt().top, dirty.FrameInt().right, dirty.FrameInt().bottom);
 	
-	const RasBuf32 dst = RenderBufferRasBuf();
+	RasBuf32 dst = GetRasBuf(bufferId);
 
-	FillRegion(dirty, 0xffcccccc);
+	FillRegion(dst, dirty, 0xffcccccc);
 
 	for (DoublyLinkedList<Surface>::Iterator it = fSurfaces.GetIterator(); Surface* surf = it.Next(); ) {
 		if (surf->clippingEnabled) {
@@ -127,6 +136,7 @@ void CompositeProducer::UpdateSwapChain(int32 width, int32 height)
 			printf("[!] can't request swap chain\n");
 			exit(1);
 		}
+		fSwapChainChanging = true;
 }
 
 void CompositeProducer::SwapChainChanged(bool isValid)
@@ -144,134 +154,36 @@ void CompositeProducer::SwapChainChanged(bool isValid)
 	fSwapChainBind.ConnectTo(GetSwapChain());
 
 	fValidPrevBufCnt = 0;
-	
+
+	Assert(fPending == 0);
+	fSwapChainChanging = false;
 	Produce();
 }
 
 void CompositeProducer::Presented(const PresentedInfo &presentedInfo)
 {
-	// printf("CompositeProducer::Presented()\n");
 	fPending--;
 	if (presentedInfo.suboptimal) {
 		if (fPending == 0) {
 			UpdateSwapChain(presentedInfo.width, presentedInfo.height);
 		}
 	} else {
-		if (!fUpdateRequested && fDirty.CountRects() > 0) {
-			fUpdateRequested = true;
-			BMessage msg(stepMsg);
-			BMessenger(this).SendMessage(&msg);
+		if (fPending == 0 && !fSwapChainChanging && fDirty.CountRects() > 0) {
+			Produce();
 		}
 	}
 	VideoProducer::Presented(presentedInfo);
 }
 
-void CompositeProducer::MessageReceived(BMessage* msg)
-{
-	switch (msg->what) {
-	case stepMsg: {
-		printf("stepMsg\n");
-		fUpdateRequested = false;
-		Produce();
-		return;
-	}
-
-	case compositeProducerNewSurfaceMsg: {
-		const char* name;
-		BRegion regionMem;
-		SurfaceUpdate update = {.clipping = &regionMem};
-		CheckReply(msg, msg->FindString("name", &name));
-		CheckReply(msg, GetSurfaceUpdate(*msg, update));
-		CompositeConsumer* cons = NewSurface(name, update);
-		if (cons == NULL) CheckReply(msg, B_NO_MEMORY);
-		BMessage reply(B_REPLY);
-		reply.AddMessenger("cons", BMessenger(cons));
-		msg->SendReply(&reply);
-		return;
-	}
-	case compositeProducerDeleteSurfaceMsg: {
-		BMessenger consMsgr;
-		CheckReply(msg, msg->FindMessenger("cons", &consMsgr));
-		CompositeConsumer* cons = dynamic_cast<CompositeConsumer*>(consMsgr.Target(NULL));
-		if (cons == NULL) CheckReply(msg, B_BAD_VALUE);
-		CheckReply(msg, DeleteSurface(cons));
-		BMessage reply(B_REPLY);
-		msg->SendReply(&reply);
-		return;
-	}
-	case compositeProducerGetSurfaceMsg: {
-		BMessenger consMsgr;
-		SurfaceUpdate update;
-		CheckReply(msg, msg->FindMessenger("cons", &consMsgr));
-		CompositeConsumer* cons = dynamic_cast<CompositeConsumer*>(consMsgr.Target(NULL));
-		if (cons == NULL) CheckReply(msg, B_BAD_VALUE);
-		CheckReply(msg, msg->FindUInt32("valid", &update.valid));
-		GetSurface(cons, update);
-		BMessage reply(B_REPLY);
-		CheckReply(msg, SetSurfaceUpdate(reply, update));
-		msg->SendReply(&reply);
-		return;
-	}
-	case compositeProducerUpdateSurfaceMsg: {
-		BMessenger consMsgr;
-		BRegion regionMem;
-		SurfaceUpdate update = {.clipping = &regionMem};
-		CheckReply(msg, msg->FindMessenger("cons", &consMsgr));
-		CompositeConsumer* cons = dynamic_cast<CompositeConsumer*>(consMsgr.Target(NULL));
-		if (cons == NULL) CheckReply(msg, B_BAD_VALUE);
-		CheckReply(msg, GetSurfaceUpdate(*msg, update));
-		UpdateSurface(cons, update);
-		BMessage reply(B_REPLY);
-		msg->SendReply(&reply);
-		return;
-	}
-	case compositeProducerInvalidateSurfaceMsg: {
-		BMessenger consMsgr;
-		BRegion dirtyMem;
-		BRegion* dirty = &dirtyMem;
-		CheckReply(msg, msg->FindMessenger("cons", &consMsgr));
-		CompositeConsumer* cons = dynamic_cast<CompositeConsumer*>(consMsgr.Target(NULL));
-		if (cons == NULL) CheckReply(msg, B_BAD_VALUE);
-		CheckReply(msg, GetRegion(*msg, "dirty", dirty));
-		InvalidateSurface(cons, dirty);
-		BMessage reply(B_REPLY);
-		msg->SendReply(&reply);
-		return;
-	}
-
-	case compositeProducerInvalidateMsg: {
-		BRegion dirtyMem;
-		BRegion* dirty = &dirtyMem;
-		CheckReply(msg, GetRegion(*msg, "dirty", dirty));
-		if (dirty == NULL) CheckReply(msg, B_BAD_VALUE);
-		Invalidate(*dirty);
-		BMessage reply(B_REPLY);
-		msg->SendReply(&reply);
-		return;
-	}
-	}
-
-	VideoProducer::MessageReceived(msg);
-};
-
-
-void CompositeProducer::FillRegion(const BRegion& region, uint32 color)
-{
-	RasBuf32 rb = RenderBufferRasBuf();
-	for (int32 i = 0; i < region.CountRects(); i++) {
-		clipping_rect rect = region.RectAtInt(i);
-		rb.Clip2(rect.left, rect.top, rect.right + 1, rect.bottom + 1).Clear(color);
-	}
-}
 
 void CompositeProducer::Produce()
 {
-	if (!SwapChainValid() /*|| RenderBufferId() < 0*/) return;
-	
-	if (RenderBufferId() < 0) {
-		printf("[!] RenderBufferId() < 0\n");
-		BRegion dirty;
-		dirty = fDirty; fDirty.MakeEmpty();
+	if (!SwapChainValid()) return;
+
+	int32 bufferId = AllocBuffer();
+
+	if (bufferId < 0) {
+		printf("[!] AllocBuffer failed\n");
 		return;
 	}
 
@@ -281,16 +193,16 @@ void CompositeProducer::Produce()
 			dirty = fDirty; fDirty.MakeEmpty();
 			BRegion combinedDirty(dirty);
 			if (fValidPrevBufCnt < 2) {
-				const VideoBuffer& buf = *RenderBuffer();
+				const VideoBuffer& buf = GetSwapChain().buffers[bufferId];
 				combinedDirty.Set(BRect(0, 0, buf.format.width - 1, buf.format.height - 1));
 				fValidPrevBufCnt++;
 			} else {
 				combinedDirty.Include(&fPrevDirty);
 			}
-			Restore(combinedDirty);
+			Restore(bufferId, combinedDirty);
 			fPrevDirty = dirty;
 			fPending++;
-			Present(fValidPrevBufCnt == 1 ? &combinedDirty : &dirty);
+			Present(bufferId, fValidPrevBufCnt == 1 ? &combinedDirty : &dirty);
 			break;
 		}
 		case presentEffectCopy:
@@ -302,9 +214,9 @@ void CompositeProducer::Produce()
 				dirty.Set(BRect(0, 0, buf.format.width - 1, buf.format.height - 1));
 				fValidPrevBufCnt++;
 			}
-			Restore(dirty);
+			Restore(bufferId, dirty);
 			fPending++;
-			Present(&dirty);
+			Present(bufferId, &dirty);
 			break;
 		}
 	}
@@ -415,12 +327,101 @@ void CompositeProducer::Invalidate(const BRegion& region)
 {
 	//printf("CompositeProducer::Invalidate((%" B_PRId32 ", %" B_PRId32 ", %" B_PRId32 ", %" B_PRId32 "))\n", region.FrameInt().left, region.FrameInt().top, region.FrameInt().right, region.FrameInt().bottom);
 	fDirty.Include(&region);
-	if (!fUpdateRequested && fDirty.CountRects() > 0 && RenderBufferId() >= 0) {
+	if (fDirty.CountRects() > 0 && !fUpdateRequested && !fSwapChainChanging && fPending == 0) {
 		fUpdateRequested = true;
-		BMessage msg(stepMsg);
-		BMessenger(this).SendMessage(&msg);
+		BMessenger(this).SendMessage(stepMsg);
 	}
 }
+
+
+void CompositeProducer::MessageReceived(BMessage* msg)
+{
+	switch (msg->what) {
+	case stepMsg: {
+		fUpdateRequested = false;
+		if (fPending == 0 && !fSwapChainChanging) {
+			Produce();
+		}
+		return;
+	}
+
+	case compositeProducerNewSurfaceMsg: {
+		const char* name;
+		BRegion regionMem;
+		SurfaceUpdate update = {.clipping = &regionMem};
+		CheckReply(msg, msg->FindString("name", &name));
+		CheckReply(msg, GetSurfaceUpdate(*msg, update));
+		CompositeConsumer* cons = NewSurface(name, update);
+		if (cons == NULL) CheckReply(msg, B_NO_MEMORY);
+		BMessage reply(B_REPLY);
+		reply.AddMessenger("cons", BMessenger(cons));
+		msg->SendReply(&reply);
+		return;
+	}
+	case compositeProducerDeleteSurfaceMsg: {
+		BMessenger consMsgr;
+		CheckReply(msg, msg->FindMessenger("cons", &consMsgr));
+		CompositeConsumer* cons = dynamic_cast<CompositeConsumer*>(consMsgr.Target(NULL));
+		if (cons == NULL) CheckReply(msg, B_BAD_VALUE);
+		CheckReply(msg, DeleteSurface(cons));
+		BMessage reply(B_REPLY);
+		msg->SendReply(&reply);
+		return;
+	}
+	case compositeProducerGetSurfaceMsg: {
+		BMessenger consMsgr;
+		SurfaceUpdate update;
+		CheckReply(msg, msg->FindMessenger("cons", &consMsgr));
+		CompositeConsumer* cons = dynamic_cast<CompositeConsumer*>(consMsgr.Target(NULL));
+		if (cons == NULL) CheckReply(msg, B_BAD_VALUE);
+		CheckReply(msg, msg->FindUInt32("valid", &update.valid));
+		GetSurface(cons, update);
+		BMessage reply(B_REPLY);
+		CheckReply(msg, SetSurfaceUpdate(reply, update));
+		msg->SendReply(&reply);
+		return;
+	}
+	case compositeProducerUpdateSurfaceMsg: {
+		BMessenger consMsgr;
+		BRegion regionMem;
+		SurfaceUpdate update = {.clipping = &regionMem};
+		CheckReply(msg, msg->FindMessenger("cons", &consMsgr));
+		CompositeConsumer* cons = dynamic_cast<CompositeConsumer*>(consMsgr.Target(NULL));
+		if (cons == NULL) CheckReply(msg, B_BAD_VALUE);
+		CheckReply(msg, GetSurfaceUpdate(*msg, update));
+		UpdateSurface(cons, update);
+		BMessage reply(B_REPLY);
+		msg->SendReply(&reply);
+		return;
+	}
+	case compositeProducerInvalidateSurfaceMsg: {
+		BMessenger consMsgr;
+		BRegion dirtyMem;
+		BRegion* dirty = &dirtyMem;
+		CheckReply(msg, msg->FindMessenger("cons", &consMsgr));
+		CompositeConsumer* cons = dynamic_cast<CompositeConsumer*>(consMsgr.Target(NULL));
+		if (cons == NULL) CheckReply(msg, B_BAD_VALUE);
+		CheckReply(msg, GetRegion(*msg, "dirty", dirty));
+		InvalidateSurface(cons, dirty);
+		BMessage reply(B_REPLY);
+		msg->SendReply(&reply);
+		return;
+	}
+
+	case compositeProducerInvalidateMsg: {
+		BRegion dirtyMem;
+		BRegion* dirty = &dirtyMem;
+		CheckReply(msg, GetRegion(*msg, "dirty", dirty));
+		if (dirty == NULL) CheckReply(msg, B_BAD_VALUE);
+		Invalidate(*dirty);
+		BMessage reply(B_REPLY);
+		msg->SendReply(&reply);
+		return;
+	}
+	}
+
+	VideoProducer::MessageReceived(msg);
+};
 
 
 status_t GetSurfaceUpdate(BMessage& msg, SurfaceUpdate& update)

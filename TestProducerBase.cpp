@@ -5,14 +5,7 @@
 
 void TestProducerBase::Produce()
 {
-	if (!SwapChainValid() /*|| RenderBufferId() < 0*/) return;
-	
-	if (RenderBufferId() < 0) {
-		printf("[!] RenderBufferId() < 0\n");
-		BRegion dirty;
-		Prepare(dirty);
-		return;
-	}
+	if (!SwapChainValid() || RenderBufferId() < 0) return;
 
 	switch (GetSwapChain().presentEffect) {
 		case presentEffectSwap: {
@@ -28,6 +21,7 @@ void TestProducerBase::Produce()
 			}
 			Restore(combinedDirty);
 			fPrevDirty = dirty;
+			fPending++;
 			Present(fValidPrevBufCnt == 1 ? &combinedDirty : &dirty);
 			break;
 		}
@@ -41,6 +35,7 @@ void TestProducerBase::Produce()
 				fValidPrevBufCnt++;
 			}
 			Restore(dirty);
+			fPending++;
 			Present(&dirty);
 			break;
 		}
@@ -75,12 +70,13 @@ void TestProducerBase::Connected(bool isActive)
 		WriteMessenger(Link());
 		printf("\n");
 
-		SwapChainSpec spec;
-		spec.size = sizeof(SwapChainSpec);
-		spec.presentEffect = presentEffectSwap;
-		spec.bufferCnt = 2;
-		spec.kind = bufferRefArea;
-		spec.colorSpace = B_RGBA32;
+		SwapChainSpec spec {
+			.size = sizeof(SwapChainSpec),
+			.presentEffect = presentEffectSwap,
+			.bufferCnt = 2,
+			.kind = bufferRefArea,
+			.colorSpace = B_RGBA32
+		};
 		if (RequestSwapChain(spec) < B_OK) {
 			printf("[!] can't request swap chain\n");
 			exit(1);
@@ -104,4 +100,10 @@ void TestProducerBase::SwapChainChanged(bool isValid)
 		fValidPrevBufCnt = 0;
 		Produce();
 	}
+}
+
+void TestProducerBase::Presented(const PresentedInfo &presentedInfo)
+{
+	fPending--;
+	VideoProducer::Presented(presentedInfo);
 }

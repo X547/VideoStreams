@@ -33,9 +33,9 @@ void CompositeConsumer::Connected(bool isActive)
 	}
 }
 
-status_t CompositeConsumer::SwapChainRequested(const SwapChainSpec& spec)
+status_t CompositeConsumer::SwapChainRequested(const SwapChainSpec& spec0)
 {
-	printf("CompositeConsumer::SwapChainRequested(%" B_PRIuSIZE ")\n", spec.bufferCnt);
+	printf("CompositeConsumer::SwapChainRequested(%" B_PRIuSIZE ")\n", spec0.bufferCnt);
 
 	// keep old display bitmap
 	if (fDisplayBitmap != NULL) {
@@ -46,9 +46,13 @@ status_t CompositeConsumer::SwapChainRequested(const SwapChainSpec& spec)
 		}
 	}
 
+	SwapChainSpec spec = spec0;
+	spec.width = (int32)fSurface->frame.Width() + 1;
+	spec.height = (int32)fSurface->frame.Height() + 1;
+
 	fBitmapCnt = spec.bufferCnt;
 	ObjectDeleter<SwapChain> swapChain;
-	fSwapChainBind.Alloc(swapChain, spec);
+	CheckRet(fSwapChainBind.Alloc(swapChain, spec));
 	SetSwapChain(swapChain.Get());
 
 	return B_OK;

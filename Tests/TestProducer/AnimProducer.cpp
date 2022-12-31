@@ -66,9 +66,9 @@ void AnimProducer::SwapChainChanged(bool isValid)
 
 void AnimProducer::Presented(const PresentedInfo &presentedInfo)
 {
+	TestProducerBase::Presented(presentedInfo);
 	// printf("AnimProducer::Presented()\n");
 	fMessageRunner.SetTo(new BMessageRunner(BMessenger(this), BMessage(stepMsg), 1000000/60, 1));
-	TestProducerBase::Presented(presentedInfo);
 }
 
 void AnimProducer::MessageReceived(BMessage* msg)

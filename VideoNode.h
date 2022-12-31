@@ -16,6 +16,7 @@ enum {
 	videoNodePresentMsg          = 5,
 	videoNodePresentedMsg        = 6,
 	videoNodeGetConsumerInfoMsg  = 7,
+	videoNodeAllocBufferMsg      = 8,
 
 	videoNodeInternalLastMsg     = 31,
 

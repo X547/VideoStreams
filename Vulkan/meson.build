@@ -1,5 +1,6 @@
 sources = [
 	'VideoBufferBindVulkan.cpp',
+	'VulkanDevice.cpp',
 ]
 
 VideoStreamsVulkanLib = shared_library(

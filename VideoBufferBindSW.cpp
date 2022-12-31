@@ -42,6 +42,7 @@ status_t SwapChainBindSW::Alloc(ObjectDeleter<SwapChain> &swapChain, const SwapC
 		auto &mappedBuffer = fBindedBuffers[i];
 
 		buffer = {
+			.id = i,
 			.format = {
 				.width = spec.width != 0 ? spec.width : 1, // !!!
 				.height = spec.height != 0 ? spec.height : 1, // !!!
