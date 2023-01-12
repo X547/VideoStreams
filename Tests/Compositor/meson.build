@@ -10,8 +10,10 @@ Compositor = executable(
 		'/boot/system/develop/headers/private/shared'
 	],
 	dependencies: [
-		VideoStreams,
-		compiler.find_library('be'),
+		dep_libvideostreams,
+		dep_libbe,
+		dep_libaccelerant,
+		dep_libtest_shared,
 	],
 	gnu_symbol_visibility: 'hidden',
 	install: true,

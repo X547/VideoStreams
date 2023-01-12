@@ -15,12 +15,15 @@ sources = [
 	'VideoConsumer.cpp',
 	'VideoBufferUtils.cpp',
 	'CompositeProducer.cpp',
+	'CompositeProducerSoftware.cpp',
 	'CompositeConsumer.cpp',
+	'CompositeConsumerSoftware.cpp',
 	'CompositeProxy.cpp',
 	'RasBuf.cpp',
 	'AreaCloner.cpp',
 	'TestProducerBase.cpp',
 	'BufferQueue.cpp',
+	'VideoBufferBind.cpp',
 	'VideoBufferBindSW.cpp',
 	'VideoBufferBindBitmap.cpp',
 	'ConsumerView.cpp',
@@ -31,7 +34,9 @@ VideoStreamsLib = shared_library(
 	sources,
 	include_directories: [
 		'/boot/system/develop/headers/private/app',
-		'/boot/system/develop/headers/private/shared'
+		'/boot/system/develop/headers/private/shared',
+		'/boot/system/develop/headers/private/system',
+		'/boot/system/develop/headers/private/system/arch/x86_64', # !!!
 	],
 	dependencies: [
 		compiler.find_library('be')
@@ -77,7 +82,7 @@ install_data(
 pkg.generate(
   VideoStreamsLib,
   name: 'libvideostreams',
-  subdirs: ['VideoStreams'],
+  subdirs: ['.', 'VideoStreams'],
   description: 'VideoStreams',
 )
 

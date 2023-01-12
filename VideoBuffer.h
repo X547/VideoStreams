@@ -26,8 +26,8 @@ struct BufferRef {
 			area_id id;
 		} area;
 		struct {
-			int32 id;
-			team_id team;
+			int fd;
+			int fenceFd;
 		} gpu;
 	};
 };
@@ -56,16 +56,17 @@ struct SwapChainSpec {
 };
 
 
-struct SwapChain {
+struct _EXPORT SwapChain {
 	size_t size;
 	PresentEffect presentEffect;
 	uint32 bufferCnt;
 	VideoBuffer* buffers;
 
 	static SwapChain *New(uint32 bufferCnt);
-	status_t Copy(ObjectDeleter<SwapChain> &dst) const;
+	~SwapChain();
+	status_t Copy(ObjectDeleter<SwapChain> &dst, team_id dstTeam = B_CURRENT_TEAM) const;
 	static status_t NewFromMessage(ObjectDeleter<SwapChain> &dst, const BMessage& msg, const char *name);
-	status_t ToMessage(BMessage& msg, const char *name) const;
+	status_t ToMessage(BMessage& msg, const char *name, team_id dstTeam = B_CURRENT_TEAM) const;
 };
 
 

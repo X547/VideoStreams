@@ -74,8 +74,8 @@ void VideoProducer::SwapChainChanged(bool isValid)
 	for (int32 i = (!isValid || GetSwapChain().presentEffect == presentEffectSwap) ? 0 : 1; i < bufferCnt; i++) {
 		fBufferPool.Add(i);
 	}
-	printf("VideoProducer::SwapChainChanged(%d)\n", isValid);
-	DumpBufferPool(fBufferPool);
+	//printf("VideoProducer::SwapChainChanged(%d)\n", isValid);
+	//DumpBufferPool(fBufferPool);
 }
 
 
@@ -120,8 +120,8 @@ VideoBuffer* VideoProducer::RenderBuffer()
 
 status_t VideoProducer::Present(int32 bufferId, const BRegion* dirty)
 {
-	printf("VideoProducer::Present(%" B_PRId32 ")\n", bufferId);
-	DumpBufferPool(fBufferPool);
+	//printf("VideoProducer::Present(%" B_PRId32 ")\n", bufferId);
+	//DumpBufferPool(fBufferPool);
 	if (!IsConnected() || !SwapChainValid())
 		return B_NOT_ALLOWED;
 
@@ -147,8 +147,8 @@ status_t VideoProducer::Present(const BRegion* dirty)
 
 status_t VideoProducer::PresentedInt(int32 recycleId, const PresentedInfo &presentedInfo)
 {
-	printf("VideoProducer::PresentedInt(%" B_PRId32 ")\n", recycleId);
-	DumpBufferPool(fBufferPool);
+	//printf("VideoProducer::PresentedInt(%" B_PRId32 ")\n", recycleId);
+	//DumpBufferPool(fBufferPool);
 	if (recycleId >= 0) {
 		Assert(fBufferPool.FindItem(recycleId) < 0);
 		Assert(fBufferPool.Add(recycleId));

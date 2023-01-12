@@ -1,6 +1,7 @@
 #include "AnimProducer.h"
 
 #include <CompositeConsumer.h>
+#include <CompositeProducer.h>
 
 #include <Bitmap.h>
 #include <File.h>
@@ -28,11 +29,11 @@ void AnimProducer::Restore(const BRegion& dirty)
 		.colors = (uint32*)bmp->Bits(),
 		.stride = bmp->BytesPerRow() / 4,
 		.width = (int32)bmp->Bounds().Width() + 1,
-		.height = (int32)bmp->Bounds().Height() + 1,		
+		.height = (int32)bmp->Bounds().Height() + 1,
 	};
 	rb.Blit(srcRb, BPoint(0, 0));
 	fCurFrame = (fCurFrame + 1)%fBitmaps.CountItems();
-	
+
 	CompositeConsumer* handler = dynamic_cast<CompositeConsumer*>(Link().Target(NULL));
 	if (handler != NULL) {
 		SurfaceUpdate update = {

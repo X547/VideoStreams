@@ -10,64 +10,7 @@
 #include <VideoBufferBindSW.h>
 #include "RasBuf.h"
 #include "AppKitPtrs.h"
-
-
-static bool FindConsumer(BMessenger& consumer)
-{
-	BMessenger consumerApp("application/x-vnd.VideoStreams-TestConsumer");
-	if (!consumerApp.IsValid()) {
-		printf("[!] No TestConsumer\n");
-		return false;
-	}
-	for (int32 i = 0; ; i++) {
-		BMessage reply;
-		{
-			BMessage scriptMsg(B_GET_PROPERTY);
-			scriptMsg.AddSpecifier("Handler", i);
-			scriptMsg.AddSpecifier("Window", (int32)0);
-			consumerApp.SendMessage(&scriptMsg, &reply);
-		}
-		int32 error;
-		if (reply.FindInt32("error", &error) >= B_OK && error < B_OK)
-			return false;
-		if (reply.FindMessenger("result", &consumer) >= B_OK) {
-			BMessage scriptMsg(B_GET_PROPERTY);
-			scriptMsg.AddSpecifier("InternalName");
-			consumer.SendMessage(&scriptMsg, &reply);
-			const char* name;
-			if (reply.FindString("result", &name) >= B_OK && strcmp(name, "testConsumer") == 0)
-				return true;
-		}
-	}
-}
-
-static bool FindConsumerGfx(BMessenger& consumer)
-{
-	BMessenger consumerApp("application/x-vnd.X512-RadeonGfx");
-	if (!consumerApp.IsValid()) {
-		printf("[!] No TestConsumer\n");
-		return false;
-	}
-	for (int32 i = 0; ; i++) {
-		BMessage reply;
-		{
-			BMessage scriptMsg(B_GET_PROPERTY);
-			scriptMsg.AddSpecifier("Handler", i);
-			consumerApp.SendMessage(&scriptMsg, &reply);
-		}
-		int32 error;
-		if (reply.FindInt32("error", &error) >= B_OK && error < B_OK)
-			return false;
-		if (reply.FindMessenger("result", &consumer) >= B_OK) {
-			BMessage scriptMsg(B_GET_PROPERTY);
-			scriptMsg.AddSpecifier("InternalName");
-			consumer.SendMessage(&scriptMsg, &reply);
-			const char* name;
-			if (reply.FindString("result", &name) >= B_OK && strcmp(name, "RadeonGfxConsumer") == 0)
-				return true;
-		}
-	}
-}
+#include <FindConsumer.h>
 
 
 static void FillRegion(const RasBuf32 &rb, const BRegion& region, uint32 color)
@@ -87,7 +30,7 @@ public:
 
 		using ::VideoProducer::VideoProducer;
 		virtual ~VideoProducer() {}
-		
+
 		void Presented(const PresentedInfo &presentedInfo) final
 		{
 			if (presentedInfo.suboptimal) {
@@ -118,7 +61,7 @@ public:
 			.colors = (uint32*)mappedBuffer.bits,
 			.stride = buf.format.bytesPerRow / 4,
 			.width  = buf.format.width,
-			.height = buf.format.height,		
+			.height = buf.format.height,
 		};
 		return rb;
 	}
@@ -128,30 +71,30 @@ public:
 		static float minX = 32;
 		static float minY = 32;
 		static float period = 12;
-	
+
 		const VideoBuffer& buf = AppKitPtrs::LockedPtr(fProducer)->GetSwapChain().buffers[bufferId];
 		int32 maxX = buf.format.width - 32;
 		int32 maxY = buf.format.height - 32;
-	
+
 		float fTime;
 		BPoint fPos;
-		
+
 		//fTime = fSequence*stepDelay;
 		fTime = float(system_time() - fStartTime)/1000000.0f;
 		float a = 2*M_PI*fTime/period;
 		fPos.x = minX + (maxX - minX)*(cosf(a) + 1)/2;
 		fPos.y = minY + (maxY - minY)*(sinf(2*a) + 1)/2;
-	
+
 		fRect.Set(fPos.x - 16, fPos.y - 16, fPos.x + 16 - 1, fPos.y + 16 - 1);
 	}
-	
+
 	void Prepare(int32 bufferId, BRegion& dirty)
 	{
 		dirty.Include(fRect);
 		Layout(bufferId);
 		dirty.Include(fRect);
 	}
-	
+
 	void Restore(int32 bufferId, const BRegion& dirty)
 	{
 		RasBuf32 rb = GetRasBuf(bufferId);
@@ -245,11 +188,11 @@ public:
 	thread_id Run() {
 		return BLooper::Run();
 	}
-	
+
 	void Quit() {
 		BLooper::Quit();
 	}
-	
+
 };
 
 

@@ -9,8 +9,8 @@ WindowConsumer = executable(
 		'/boot/system/develop/headers/private/app'
 	],
 	dependencies: [
-		VideoStreams,
-		compiler.find_library('be')
+		dep_libvideostreams,
+		dep_libbe,
 	],
 	gnu_symbol_visibility: 'hidden',
 	install: true,

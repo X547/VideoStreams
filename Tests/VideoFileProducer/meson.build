@@ -11,9 +11,11 @@ VideoFileProducer = executable(
 		'/boot/system/develop/headers/private/shared'
 	],
 	dependencies: [
-		VideoStreams,
-		compiler.find_library('be'),
-		compiler.find_library('media'),
+		dep_libvideostreams,
+		dep_libbe,
+		dep_libmedia,
+		dep_libaccelerant,
+		dep_libtest_shared,
 	],
 	gnu_symbol_visibility: 'hidden',
 	install: true,

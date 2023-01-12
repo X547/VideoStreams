@@ -1,6 +1,5 @@
 sources = [
 	'VideoBufferBindVulkan.cpp',
-	'VulkanDevice.cpp',
 ]
 
 VideoStreamsVulkanLib = shared_library(
@@ -24,6 +23,7 @@ VideoStreamsVulkan = declare_dependency(
 	link_with : VideoStreamsVulkanLib,
 	include_directories: [
 		'/boot/system/develop/headers/private/shared',
+		'.',
 	]
 )
 

@@ -10,9 +10,9 @@ AccelerantConsumer = executable(
 		'/boot/system/develop/headers/private/app'
 	],
 	dependencies: [
-		VideoStreams,
-		compiler.find_library('be'),
-		compiler.find_library('game')
+		dep_libvideostreams,
+		dep_libbe,
+		dep_libgame,
 	],
 	gnu_symbol_visibility: 'hidden',
 	install: true,

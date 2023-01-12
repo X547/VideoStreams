@@ -21,13 +21,13 @@ private:
 	uint32 fBitmapCnt = 0;
 	BBitmap *fDisplayBitmap = NULL;
 	ObjectDeleter<BBitmap> fDisplayBitmapDeleter;
-	
+
 	void KeepOldDisplayBitmap();
 
 public:
 	ViewConsumer(const char* name, BView* view);
 	virtual ~ViewConsumer();
-	
+
 	void Connected(bool isActive) final;
 	status_t SwapChainRequested(const SwapChainSpec& spec) final;
 	void SwapChainChanged(bool isValid) final;
@@ -116,12 +116,6 @@ void ViewConsumer::Present(int32 bufferId, const BRegion* dirty)
 	//fDisplayBitmap = fSwapChainBind.Buffers()[bufferId].bitmap.Get();
 	fView->SetViewBitmap(fSwapChainBind.Buffers()[bufferId].bitmap.Get(), B_FOLLOW_TOP | B_FOLLOW_LEFT, 0);
 	printf("ViewConsumer::Present(%" B_PRId32 "), displayBitmap: %p\n", bufferId, fDisplayBitmap);
-/*
-	if (*(uint32*)fDisplayBitmap->Bits() == 0xcccccccc) {
-		printf("Present: empty frame: [WAIT]");
-		fgetc(stdin);
-	}
-*/
 	switch (GetSwapChain().presentEffect) {
 		case presentEffectCopy: {
 			BBitmap *dstBmp = fSwapChainBind.Buffers()[DisplayBufferId()].bitmap.Get();
@@ -183,10 +177,6 @@ void ConsumerView::Draw(BRect dirty)
 	BRegion region(dirty);
 	BBitmap* bmp = fConsumer->fDisplayBitmap;
 	if (bmp != NULL) {
-		if (*(uint32*)bmp->Bits() == 0xcccccccc) {
-			printf("Draw: empty frame: [WAIT]");
-			fgetc(stdin);
-		}
 		DrawBitmap(bmp, B_ORIGIN);
 		region.Exclude(bmp->Bounds());
 	}

@@ -1,23 +1,24 @@
 #ifndef _TESTPRODUCER_H_
 #define _TESTPRODUCER_H_
 
-#include <VideoStreams/VideoProducer.h>
+#include <type_traits>
+
+#include <VideoProducer.h>
+#include <VideoBuffer.h>
 #include <MessageRunner.h>
 #include <AutoDeleter.h>
 
 #include <amdgpu.h>
 
 
-class TestProducer final: public VideoProducer
-{
-private:
-	enum {
-		stepMsg = videoNodeLastMsg + 1,
-	};
+typedef CObjectDeleter<amdgpu_device, int, amdgpu_device_deinitialize> AmdgpuDeviceRef;
+typedef CObjectDeleter<amdgpu_bo, int, amdgpu_bo_free> AmdgpuBoRef;
 
-	amdgpu_device_handle fDev{};
+class TestProducer final: public VideoProducer {
+private:
+	AmdgpuDeviceRef fDev;
 	uint32 fBufferCnt{};
-	ArrayDeleter<amdgpu_bo_handle> fBufs;
+	ArrayDeleter<AmdgpuBoRef> fBufs;
 
 	void Produce();
 
@@ -27,7 +28,7 @@ public:
 
 	void Connected(bool isActive) final;
 	void SwapChainChanged(bool isValid) final;
-	void Presented() final;
+	void Presented(const PresentedInfo &presentedInfo) final;
 	void MessageReceived(BMessage* msg) final;
 };
 
